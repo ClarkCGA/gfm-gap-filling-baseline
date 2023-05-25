@@ -9,3 +9,4 @@ The command line input for running train.py with the drc data is as follows: pyt
 Currently, the code is set to crop inputs to 32x32 with batch sizes of 1, but still runs out of CUDA memory at the generator loss step. This needs troubleshooting. For reference, this code runs with 192x192 images on the same computer in an Anaconda environment in Windows. This may have to do with driver issues rather than the code itself.
 
 Make sure you have the data folder in the same host directory as the dockerfile, requirements, and gap-filling-baseline folder. The data folder will be hosted on OneDrive.
+
