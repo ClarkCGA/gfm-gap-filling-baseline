@@ -114,6 +114,7 @@ class Trainer:
                 # Code block below feeds the first sample into the generator and outputs it to an rgb image in results - DG
                 # It now also extracts the ground truth sample, the true label, and the true dem
                
+                """
                 if idx == 100:
                     g_input = self.sample2gen_input(sample)
                     fake_rgb = self.g_net(g_input)
@@ -135,14 +136,16 @@ class Trainer:
                     true_dem = (sample["dem"][0,:,:].squeeze().detach().cpu().numpy() * 255).astype(np.uint8)
                     result = Image.fromarray(true_dem)
                     result.save(self.out_dir / 'dem_epoch_{}_batch_{}.jpg'.format(n_epoch, idx))
-               
+                """
 
                 # Code block below creates rgb array out of the first item in each batch and appends it to the list of arrays to generate the gif - DG
+                """
                 g_input = self.sample2gen_input(sample)
                 fake_rgb = self.g_net(g_input)
                 fake_rgb = (fake_rgb[0,:3,:,:].flip(1).squeeze().detach().cpu().numpy() * 255).astype(np.uint8)
                 fake_rgb = np.transpose(fake_rgb, (1, 2, 0))
                 rgb_gif_arrays.append(fake_rgb)
+                """
 
                 g_loss = self.g_one_step(sample)
                 running_g_loss += g_loss.item()
@@ -165,9 +168,11 @@ class Trainer:
             )
 
             # Write gif to results
+            """
             with imageio.get_writer((self.out_dir / 'generated_epoch_{}.gif'.format(n_epoch)), mode='I', duration=0.02) as writer:
                 for array in rgb_gif_arrays:
                     writer.append_data(array)
+            """
 
             pbar.update(1)
             pbar.set_description(info_str)
