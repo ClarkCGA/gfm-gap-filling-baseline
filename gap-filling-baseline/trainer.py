@@ -51,6 +51,7 @@ class Trainer:
         return {src: sample[src] for src in self.src}
 
     def g_one_step(self, sample):
+    
         self.g_optim.zero_grad()
 
         g_input = self.sample2gen_input(sample)
@@ -102,6 +103,7 @@ class Trainer:
 
     def train(self, dataloader, n_epochs):
         pbar = tqdm.tqdm(total=n_epochs)
+        device = torch.device("cuda:0")
         for n_epoch in range(1, n_epochs + 1):
             running_g_loss = torch.tensor(0.0, requires_grad=False)
             running_d_loss = torch.tensor(0.0, requires_grad=False)
@@ -146,7 +148,7 @@ class Trainer:
                 fake_rgb = np.transpose(fake_rgb, (1, 2, 0))
                 rgb_gif_arrays.append(fake_rgb)
                 """
-
+                sample = {k: v.to(device) for k, v in sample.items()}
                 g_loss = self.g_one_step(sample)
                 running_g_loss += g_loss.item()
 

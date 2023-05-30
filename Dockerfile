@@ -9,6 +9,8 @@ RUN pip install -r requirements.txt
 
 COPY gap-filling-baseline /workspace/gap-filling-baseline
 
-COPY data /workspace/gap-filling-baseline/data
+VOLUME /workspace/gap-filling-baseline/data
+
+WORKDIR /workspace/gap-filling-baseline
 
 EXPOSE 8888

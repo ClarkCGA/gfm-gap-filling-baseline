@@ -54,13 +54,13 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--num_workers", default=2, type=int, help="Number of workers for data loader.",
+        "--num_workers", default=1, type=int, help="Number of workers for data loader.",
     )
 
     parser.add_argument(
         "--out_dir",
         type=pathlib.Path,
-        default="./results",
+        default="./data/results",
         help="Where to store models, log, etc.",
     )
 
@@ -134,7 +134,7 @@ def get_transforms(config):
         train_transforms = torchvision.transforms.Compose(
             [
                 datasets.transforms.ToTensor(),
-                datasets.transforms.RandomCrop((32,32)),
+                datasets.transforms.RandomCrop((192,192)),
                 datasets.transforms.RandomHorizontalFlip(),
                 datasets.transforms.RandomVerticalFlip(),
                 datasets.transforms.OneHot(),
@@ -143,7 +143,7 @@ def get_transforms(config):
         test_transforms = torchvision.transforms.Compose(
             [
                 datasets.transforms.ToTensor(),
-                datasets.transforms.CenterCrop((32,32)),
+                datasets.transforms.CenterCrop((192,192)),
                 datasets.transforms.OneHot(),
             ]
         )

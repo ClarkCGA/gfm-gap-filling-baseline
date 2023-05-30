@@ -183,7 +183,7 @@ class ResnetEncoderDecoder(nn.Module):
         output_nc=3,
         init_kernel_size=7,
         n_downsample=4,
-        n_resnet_blocks=9,
+        n_resnet_blocks=7,
     ):
         super().__init__()
 
@@ -251,7 +251,7 @@ class SPADEResnetEncoderDecoder(nn.Module):
 
 class SPADEGenerator(nn.Module):
     def __init__(
-        self, label_nc, init_nc=256, output_nc=3, n_mid_stages=2, n_up_stages=4
+        self, label_nc, init_nc=256, output_nc=3, n_mid_stages=2, n_up_stages=3
     ):
         super().__init__()
 

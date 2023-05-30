@@ -166,6 +166,7 @@ train_sampler = torch.utils.data.distributed.DistributedSampler(
     dataset, shuffle=True, num_replicas=torch.cuda.device_count(), rank=args.local_rank,
 )
 """
+"""
 class MyDataLoader(torch.utils.data.DataLoader):
     def __init__(self, dataset, batch_size, shuffle=True, num_workers=0, pin_memory=False):
         super(MyDataLoader, self).__init__(dataset, batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
@@ -180,15 +181,17 @@ train_dataloader = MyDataLoader(
     batch_size=args.batch_size,
     num_workers=args.num_workers
     )
-
-
 """
+
+train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
 train_dataloader = torch.utils.data.DataLoader(
     dataset,
-    batch_size=args.batch_size // torch.cuda.device_count(),
+    batch_size=args.batch_size,
     sampler=train_sampler,
     num_workers=args.num_workers,
 )
+
+"""
 for batch in train_dataloader:
     batch = {k: v.to(device) for k, v in batch.items()}
 """
