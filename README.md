@@ -1,7 +1,7 @@
 # gfm-gap-filling-baseline
 Baseline model for gap filling as part of the GFM downstream task evaluations
 
-5/25
+5/30
 Currently, the build is configured to synthesize rgb satellite imagery using DEM and segmentation maps of the Democratic Republic of the Congo. 
 
 Run using:
