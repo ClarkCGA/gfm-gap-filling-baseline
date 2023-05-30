@@ -147,47 +147,19 @@ def get_generator(config):
     n_labels = dset_class.N_LABELS
     output_nc = dset_class.N_CHANNELS[config["dataset"]["output"]]
 
-    # only segmentation map as input -> SPADE generator
-    if config["dataset"]["input"] == ["seg"]:
-        return models.generator.SPADEGenerator(
-            n_labels,
-            config["model"]["model_cap"] * 2 ** config["model"]["n_sampling"],
-            output_nc,
-            n_up_stages=config["model"]["n_sampling"],
-        )
-    # no segmentation map as input -> Pix2Pix generator
-    if "seg" not in config["dataset"]["input"]:
-        input_nc = sum(dset_class.N_CHANNELS[it] for it in config["dataset"]["input"])
+    # Generator for gap filling task
+    if config["dataset"]["name"]=="gapfill":
+        input_nc = dset_class.N_CHANNELS * 3
         return models.generator.ResnetEncoderDecoder(
             input_nc,
             config["model"]["model_cap"],
             output_nc,
             n_downsample=config["model"]["n_sampling"],
         )
-
-    # Deal with generator architectures that deal with segmentation maps
-    # and continous raster data as input
-    # 1) concatenate and use regular Pix2Pix
-    # 2) use proposed archicture from the paper
-
-    # number of channels for all input types except the segmentation_map,
-    input_nc = sum(
-        dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg"
-    )
-
-    # Which generator architecture to use with multiple inputs.
-    # Conventional generator (pix2pix) with concatenated input
-    try:
-        if config["model"]["concat"]:
-            input_nc += n_labels
-            return models.generator.ResnetEncoderDecoder(
-                input_nc,
-                config["model"]["model_cap"],
-                output_nc,
-                n_downsample=config["model"]["n_sampling"],
-            )
-    except KeyError:
+    # Maintain functionality for testing with DRC
+    else:
         # Proposed conventional generator with SPADE norm layers everywhere
+        input_nc = sum(dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg")
         return models.generator.SPADEResnetEncoderDecoder(
             input_nc,
             n_labels,

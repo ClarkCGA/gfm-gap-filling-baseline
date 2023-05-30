@@ -21,7 +21,7 @@ def get_parser():
     parser.add_argument(
         "--crop",
         type=int,
-        default=(256,),
+        default=(256,256),
         nargs="+",
         help="Size of crop. Can be a tuple of height and width",
     )
@@ -45,12 +45,12 @@ def get_parser():
     parser.add_argument(
         "--dataset",
         type=str,
-        default="nrw",
-        choices=["nrw", "dfc", "drc"],
-        help="Which dataset to use: DRC, GeoNRWa or Data Fusion Contest 2020?",
+        default="drc",
+        choices=["drc", "gapfill"],
+        help="Which dataset to use: DRC or cloud gap filling?",
     )
     parser.add_argument(
-        "--dataroot", type=str, default="./data/nrw", help="Path to dataset"
+        "--dataroot", type=str, default="./data", help="Path to dataset"
     )
 
     parser.add_argument(
@@ -81,56 +81,7 @@ def get_transforms(config):
 
     """
 
-    n_labels = getattr(datasets, config["dataset"]["name"]).N_LABELS
-
-    if config["dataset"]["name"] == "nrw":
-        train_transforms = [
-            datasets.transforms.RandomCrop(config["training"]["crop"]),
-            datasets.transforms.RandomHorizontalFlip(),
-            datasets.transforms.Resize(config["training"]["resize"]),
-            datasets.transforms.ToTensor(),
-            datasets.transforms.TensorApply(
-                seg=lambda x: torch.nn.functional.one_hot(x.long(), n_labels)
-                .squeeze()
-                .permute(2, 0, 1)
-                .float()
-            ),
-        ]
-
-        # remove resize layer if size of crop and resize are identical
-        if config["training"]["crop"] == config["training"]["resize"]:
-            train_transforms = [
-                tt
-                for tt in train_transforms
-                if not isinstance(tt, datasets.transforms.Resize)
-            ]
-
-        train_transforms = torchvision.transforms.Compose(train_transforms)
-
-        # Get test transform from train trainsform.
-        # Test transform should be deterministic.
-        # 1) replace random crop with center crop
-        # 2) remove horizontal flip
-        test_transforms = torchvision.transforms.Compose(
-            [
-                datasets.transforms.CenterCrop(config["training"]["crop"]),
-                *train_transforms.transforms[2:],
-            ]
-        )
-    elif config["dataset"]["name"] == "dfc":
-        train_transforms = torchvision.transforms.Compose(
-            [
-                datasets.transforms.ToTensor(),
-                datasets.transforms.TensorApply(
-                    seg=lambda x: torch.nn.functional.one_hot(x.long(), n_labels)
-                    .squeeze()
-                    .permute(2, 0, 1)
-                    .float()
-                ),
-            ]
-        )
-        test_transforms = train_transforms
-    elif config["dataset"]["name"] == "drc":
+    if config["dataset"]["name"] == "drc":
         train_transforms = torchvision.transforms.Compose(
             [
                 datasets.transforms.ToTensor(),
@@ -147,6 +98,24 @@ def get_transforms(config):
                 datasets.transforms.OneHot(),
             ]
         )
+        
+    elif config["dataset"]["name"] == "gapfill":
+        train_transforms = torchvision.transforms.Compose(
+            [
+                datasets.transforms.ToTensor(),
+                datasets.transforms.RandomCrop(config["training"]["crop"]),
+                datasets.transforms.RandomHorizontalFlip(),
+                datasets.transforms.RandomVerticalFlip(),
+            ]
+        )
+        test_transforms = torchvision.transforms.Compose(
+            [
+                datasets.transforms.ToTensor(),
+                datasets.transforms.CenterCrop(config["training"]["crop"]),
+                datasets.transforms.OneHot(),
+            ]
+        )
+        
     else:
         raise RuntimeError("Invalid dataset. This should never happen")
     return train_transforms, test_transforms
@@ -173,16 +142,8 @@ def get_dataset(config, split, transforms):
     name = config["dataset"]["name"]
     root = config["dataset"]["root"]
 
-    if name == "dfc":
-        return datasets.dfc.DFC2020(root, split, transforms)
+    if name == "gapfill":
+        return datasets.gapfill.GAPFILL(root, split, transforms)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
-    if name == "nrw":
-        # extra check whether also to load SAR acquisitions
-        try:
-            include_sar = config["dataset"]["output"] == "sar"
-        except KeyError:
-            include_sar = False
-        return datasets.nrw.NRW(root, split, include_sar, transforms)
-    # raising should never happen
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))
