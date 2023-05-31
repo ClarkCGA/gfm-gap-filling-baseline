@@ -183,7 +183,7 @@ class ResnetEncoderDecoder(nn.Module):
         output_nc=3,
         init_kernel_size=7,
         n_downsample=4,
-        n_resnet_blocks=7,
+        n_resnet_blocks=9,
     ):
         super().__init__()
 

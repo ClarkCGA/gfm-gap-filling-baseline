@@ -14,6 +14,7 @@ import torchvision.transforms.functional as TF
 
 logging.getLogger("rasterio").setLevel(logging.WARNING)
 
+N_LABELS = 0
 N_CHANNELS = {"img": 8} # CHANGE to however many channels are in the dataset
 
 class GAPFILL(VisionDataset):
@@ -31,16 +32,12 @@ class GAPFILL(VisionDataset):
     """
 
     splits = ["train", "test"]
+    timesteps = ["t1", "t2", "t3", "cloud"]
 
-    def __init__(self, root, split="train", transforms=None, time_steps=3, mask_position=[1]):
+    def __init__(self, root, split="train", transforms=None):
         super().__init__(pathlib.Path(root), transforms=transforms)
         verify_str_arg(split, "split", self.splits)
         self.split = split
-        self.time_steps = time_steps
-        self.mask_position = mask_position
-        self.timesteps = ["cloud"]
-        for n in range(1, self.time_steps+1):
-            self.timesteps.append(f"t{n}")
         self.tif_paths = {timestep: self._get_tif_paths(timestep) for timestep in self.timesteps}
 
     def _get_tif_paths(self, timestep):
@@ -49,9 +46,22 @@ class GAPFILL(VisionDataset):
             catalog = csv[csv["usage"] == "validate"]
         else:
             catalog = csv[csv["usage"] == "train"]
-        itemlist = sorted(catalog[f'dir_{timestep}'].tolist())
-        pathlist = [self.root.joinpath(item) for item in itemlist]
-        return pathlist
+        if timestep == "t1":
+            t1list = sorted(catalog['dir_t1'].tolist())
+            t1path = [self.root.joinpath(item) for item in t1list]
+            return t1path
+        elif timestep == "t2":
+            t2list = sorted(catalog['dir_t2'].tolist())
+            t2path = [self.root.joinpath(item) for item in t2list]
+            return t2path
+        elif timestep == "t3":
+            t3list = sorted(catalog['dir_t3'].tolist())
+            t3path = [self.root.joinpath(item) for item in t3list]
+            return t3path
+        elif timestep == "cloud":
+            cloudlist = sorted(catalog['dir_cloud'].tolist())
+            cloudpath = [self.root.joinpath(item) for item in cloudlist]
+            return cloudpath
 
     def __len__(self):
         return len(self.tif_paths["t1"])
@@ -61,22 +71,17 @@ class GAPFILL(VisionDataset):
             with rasterio.open(path) as src:
                 return src.read()
 
-        # Read all timesteps of the same spatial extent into the sample dictionary, excluding cloud scenes
         sample = {
             timestep: read_tif_as_np_array(self.tif_paths[timestep][index]) for timestep in self.timesteps if timestep is not "cloud"
         }
         
-        # Extract desired bands and rearrange to H,W,C for each time step
-        for n in range(1, self.time_steps+1):
-            sample[f"t{n}"] = self.extract_rgb_from_tif(sample.pop(f"t{n}"))
+        sample["cloud"] = read_tif_as_np_array(self.tif_paths["cloud"][np.random.randint(0,len(self.tif_paths["cloud"]))])
 
-        # Read in randomly selected cloudy scene for each mask position
-        for n in range(len(self.mask_position)):
-            sample[f"cloud{self.mask_position[n]}"] = read_tif_as_np_array(self.tif_paths["cloud"][np.random.randint(0,len(self.tif_paths["cloud"])-1)])
-
-        # Mask imagery at specified mask positions with randomly selected cloud scenes
-        for n in range(len(self.mask_position)):
-            sample[f"cloud{self.mask_position[n]}"] = cloudmask(sample.pop(f"cloud{self.mask_position[n]}"), sample[f"t{self.mask_position[n]}"])
+        # Also move channels to last dimension, which is expected by pytorch's to_tensor
+        sample["t1"] = self.extract_rgb_from_tif(sample.pop("t1"))
+        sample["t2"] = self.extract_rgb_from_tif(sample.pop("t2"))
+        sample["t3"] = self.extract_rgb_from_tif(sample.pop("t3"))
+        sample["cloud"] = cloudmask(sample.pop("cloud"), sample["t2"])
 
         if self.transforms:
             sample = self.transforms(sample)

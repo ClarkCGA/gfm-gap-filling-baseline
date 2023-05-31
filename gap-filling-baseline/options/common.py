@@ -21,7 +21,7 @@ def get_parser():
     parser.add_argument(
         "--crop",
         type=int,
-        default=(256,256),
+        default=(256,),
         nargs="+",
         help="Size of crop. Can be a tuple of height and width",
     )
@@ -51,6 +51,18 @@ def get_parser():
     )
     parser.add_argument(
         "--dataroot", type=str, default="./data", help="Path to dataset"
+    )
+
+    parser.add_argument(
+        "--time_steps", type=int, default=3, help="Number of time steps for gap filling dataset"
+    )
+    
+    parser.add_argument(
+        "--mask_position",
+        type=int,
+        default=[1],
+        nargs="+",
+        help="List of positions of mask in time steps - first time step = 1, last time step = input of --time_steps",
     )
 
     parser.add_argument(
@@ -112,7 +124,6 @@ def get_transforms(config):
             [
                 datasets.transforms.ToTensor(),
                 datasets.transforms.CenterCrop(config["training"]["crop"]),
-                datasets.transforms.OneHot(),
             ]
         )
         
@@ -143,7 +154,9 @@ def get_dataset(config, split, transforms):
     root = config["dataset"]["root"]
 
     if name == "gapfill":
-        return datasets.gapfill.GAPFILL(root, split, transforms)
+        time_steps = config["dataset"]["time_steps"]
+        mask_position = config["dataset"]["mask_position"]
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))

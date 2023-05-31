@@ -30,7 +30,7 @@ def get_parser():
     parser.add_argument(
         "--output",
         default="rgb",
-        choices=["rgb", "sar"],
+        nargs="+",
         help="Output of the generator.",
     )
     parser.add_argument(
@@ -116,7 +116,6 @@ def args2dict(args):
     train_args = ["crop", "resize", "batch_size", "epochs", "lbda"]
     if args.seed:
         train_args.append("seed")
-
     model = {param: getattr(args, param) for param in model_args}
     train = {param: getattr(args, param) for param in train_args}
     data = {
@@ -124,6 +123,8 @@ def args2dict(args):
         "root": args.dataroot,
         "input": args.input,
         "output": args.output,
+        "time_steps": args.time_steps,
+        "mask_position": args.mask_position
     }
 
     return {"model": model, "training": train, "dataset": data}
@@ -144,12 +145,13 @@ def get_generator(config):
     """
 
     dset_class = getattr(datasets, config["dataset"]["name"])
-    n_labels = dset_class.N_LABELS
-    output_nc = dset_class.N_CHANNELS[config["dataset"]["output"]]
 
     # Generator for gap filling task
     if config["dataset"]["name"]=="gapfill":
-        input_nc = dset_class.N_CHANNELS * 3
+        # Set input channels N_CHANNELS multiplied by number of time steps
+        input_nc = dset_class.N_CHANNELS * config["dataset"]["time_steps"]
+        # Set output to how many time scenes we want to generate times N_CHANNELS
+        output_nc = dset_class.N_CHANNELS * len(config["dataset"]["output"])
         return models.generator.ResnetEncoderDecoder(
             input_nc,
             config["model"]["model_cap"],
@@ -159,6 +161,8 @@ def get_generator(config):
     # Maintain functionality for testing with DRC
     else:
         # Proposed conventional generator with SPADE norm layers everywhere
+        n_labels = dset_class.N_LABELS
+        output_nc = dset_class.N_CHANNELS[config["dataset"]["output"][0]]
         input_nc = sum(dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg")
         return models.generator.SPADEResnetEncoderDecoder(
             input_nc,
@@ -183,14 +187,19 @@ def get_discriminator(config):
     """
     dset_class = getattr(datasets, config["dataset"]["name"])
     # generator conditioned on this input
+    
     gen_input_nc = sum(
         dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg"
     )
     if "seg" in config["dataset"]["input"]:
         gen_input_nc += dset_class.N_LABELS
 
-    disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"]]
+    disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"][0]]
 
+    # Input number of time steps of conditions + number of time steps of output, multiplied by channels of the imagery
+    if config["dataset"]["name"]=="gapfill":
+        disc_input_nc = (config["dataset"]["time_steps"] + len(config["dataset"]["output"])) * dset_class.N_CHANNELS
+    
     # Downsampling is done in the multiscale discriminator,
     # i.e., all discriminators are identically configures
     d_nets = [
