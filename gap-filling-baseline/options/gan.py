@@ -76,7 +76,7 @@ def args2str(args):
     """
 
     # translate what to what
-    trans_str = "_".join(args.input) + "2{}".format(args.output)
+    trans_str = "_".join(args.input) + "2{}".format(args.output[0])
 
     # training arguments
     train_str = "{args.dataset}_{w2w}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}".format(
