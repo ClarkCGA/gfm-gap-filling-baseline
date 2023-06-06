@@ -55,9 +55,6 @@ def get_parser():
         type=int,
         help="Number of scales for multiscale discriminator",
     )
-    parser.add_argument(
-        "--lbda", default=None, type=float, help="weighting of feature loss"
-    )
 
     return parser
 
@@ -113,7 +110,7 @@ def args2dict(args):
     model_args = ["model_cap", "n_sampling", "n_scales"]
     if args.concat:
         model_args.append("concat")
-    train_args = ["crop", "resize", "batch_size", "epochs", "lbda"]
+    train_args = ["crop", "resize", "batch_size", "epochs"]
     if args.seed:
         train_args.append("seed")
     model = {param: getattr(args, param) for param in model_args}
@@ -150,8 +147,8 @@ def get_generator(config):
     if config["dataset"]["name"]=="gapfill":
         # Set input channels N_CHANNELS multiplied by number of time steps
         input_nc = dset_class.N_CHANNELS * config["dataset"]["time_steps"]
-        # Set output to how many time scenes we want to generate times N_CHANNELS
-        output_nc = dset_class.N_CHANNELS * len(config["dataset"]["output"])
+        # Set output channels to equal input_nc
+        output_nc = input_nc
         return models.generator.ResnetEncoderDecoder(
             input_nc,
             config["model"]["model_cap"],
@@ -196,9 +193,10 @@ def get_discriminator(config):
 
     disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"][0]]
 
-    # Input number of time steps of conditions + number of time steps of output, multiplied by channels of the imagery
+    # Input number of time steps of conditions + number of time steps of output, multiplied by channels of the imagery.
+    # As input_nc = output_nc, we can multiply input nc (time steps) by 2 and then multiply by n channels.
     if config["dataset"]["name"]=="gapfill":
-        disc_input_nc = (config["dataset"]["time_steps"] + len(config["dataset"]["output"])) * dset_class.N_CHANNELS
+        disc_input_nc = (config["dataset"]["time_steps"]) * dset_class.N_CHANNELS * 2
     
     # Downsampling is done in the multiscale discriminator,
     # i.e., all discriminators are identically configures

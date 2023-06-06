@@ -115,18 +115,9 @@ def get_transforms(config):
         train_transforms = torchvision.transforms.Compose(
             [
                 datasets.transforms.ToTensor(),
-                datasets.transforms.RandomCrop(config["training"]["crop"]),
-                datasets.transforms.RandomHorizontalFlip(),
-                datasets.transforms.RandomVerticalFlip(),
             ]
         )
-        test_transforms = torchvision.transforms.Compose(
-            [
-                datasets.transforms.ToTensor(),
-                datasets.transforms.CenterCrop(config["training"]["crop"]),
-            ]
-        )
-        
+        test_transforms = train_transforms
     else:
         raise RuntimeError("Invalid dataset. This should never happen")
     return train_transforms, test_transforms

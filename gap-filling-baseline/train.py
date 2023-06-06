@@ -66,17 +66,11 @@ if args.seed is not None:
         "from checkpoints."
     )
 
-if len(args.crop) == 1:
-    args.crop = args.crop[0]
-
-if len(args.resize) == 1:
-    args.resize = args.resize[0]
-
+# Create CONFIG, a dictionary of parameters used to create the dataset and GAN models
 CONFIG = options.gan.args2dict(args)
 
 with open(OUT_DIR / "config.yml", "w") as cfg_file:
     yaml.dump(CONFIG, cfg_file)
-
 
 if not torch.cuda.is_available():
     raise RuntimeError("This scripts expects CUDA to be available")
@@ -86,8 +80,6 @@ device = torch.device("cuda:{}".format(args.local_rank))
 # set device of this process. Otherwise apex.amp throws errors.
 # see https://github.com/NVIDIA/apex/issues/319
 torch.cuda.set_device(device)
-
-
 
 #########################
 #                       #
@@ -158,30 +150,8 @@ trainer = Trainer(
     d_net,
     args.input,
     args.output,
-    feat_loss=CONFIG["training"]["lbda"],
     out_dir=OUT_DIR
 )
-"""
-train_sampler = torch.utils.data.distributed.DistributedSampler(
-    dataset, shuffle=True, num_replicas=torch.cuda.device_count(), rank=args.local_rank,
-)
-"""
-"""
-class MyDataLoader(torch.utils.data.DataLoader):
-    def __init__(self, dataset, batch_size, shuffle=True, num_workers=0, pin_memory=False):
-        super(MyDataLoader, self).__init__(dataset, batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
-
-    def __iter__(self):
-        for batch in super(MyDataLoader, self).__iter__():
-            yield {k: v.to(device) for k, v in batch.items()}
-
-train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
-train_dataloader = MyDataLoader(
-    dataset,
-    batch_size=args.batch_size,
-    num_workers=args.num_workers
-    )
-"""
 
 train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
 train_dataloader = torch.utils.data.DataLoader(
@@ -191,13 +161,7 @@ train_dataloader = torch.utils.data.DataLoader(
     num_workers=args.num_workers,
 )
 
-"""
-for batch in train_dataloader:
-    batch = {k: v.to(device) for k, v in batch.items()}
-"""
-
 trainer.train(train_dataloader, args.epochs)
-
 
 ##########
 #        #

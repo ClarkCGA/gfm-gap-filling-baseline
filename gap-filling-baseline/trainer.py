@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
-        self, g_net, d_net, src=["dem", "seg"], dest="rgb", feat_loss=None, out_dir=None
+        self, g_net, d_net, src=["dem", "seg"], dest="rgb", out_dir=None
     ):
         
         self.rank = 0
@@ -32,7 +32,6 @@ class Trainer:
 
         self.out_dir = out_dir
 
-        # parameters taken from SPADE https://github.com/NVlabs/SPADE/issues/50#issuecomment-494217696
         self.g_optim = torch.optim.Adam(
             self.g_net.parameters(), lr=0.00001, betas=(0, 0.9)
         )
@@ -41,29 +40,43 @@ class Trainer:
         )
 
         self.g_loss = loss.HingeGenerator()
-        self.g_feat_lambda = feat_loss
-        if feat_loss is not None:
-            self.g_feat_loss = torch.nn.functional.l1_loss
-            self.d_net.return_intermed = True
         self.d_loss = loss.HingeDiscriminator()
 
     def sample2gen_input(self, sample):
         
-        if self.src == ["img"]: # Create a generator input dictionary containing masked cloud scenes where they exits
+        if self.src == ["img"]: # Create a generator input dictionary containing masked cloud scenes where they exist
             # Create empty dictionary
             gen_input = {}
-            # Sorted list of time steps as integers
+            # Sorted list of time steps as integers with no duplicates
             time_steps = sorted(list(set([int(k[-1]) for k in sample.keys()])))
-            # Add all time steps to one dict, cloud scenes to another
+            # Add masked images to the gen input
             for t in time_steps:
-                if f"cloud{t}" in sample:
-                    gen_input[f"cloud{t}"] = sample[f"cloud{t}"]
-                else:
-                    gen_input[f"t{t}"] = sample[f"t{t}"]
+                gen_input[f"masked{t}"] = sample[f"masked{t}"]
+            
             return gen_input
 
         else:
             return {src: sample[src] for src in self.src}
+
+    def sample2disc_input(self, sample):
+        # Create empty dictionary
+        disc_input = {}
+            # Sorted list of time steps as integers with no duplicates
+        time_steps = sorted(list(set([int(k[-1]) for k in sample.keys()])))
+            # Add masked images to the disc input in order
+        for t in time_steps:
+            disc_input[f"masked{t}"] = sample[f"masked{t}"]
+        return disc_input
+    
+    def mask_gen_output(self, sample, gen_output):
+        # function to take the gen output and mask it by the cloud mask at that position in the sample, to compare with unmasked
+        # Inputs:
+        # sample - a dict, keys are names of tensors and values are the tensors themselves
+        # gen_output - a tensor of shape B, H, W, C, with C = number of time steps * number of channels
+        # Create masking tensor of identical shape to gen_output, with cloud masking locations equal to 1, by concatenating cloud masks
+        mask = torch.cat([sample[key] for key in sample if "cloud" in key], 1)
+        masked_gen_output = gen_output * mask
+        return masked_gen_output
 
     def g_one_step(self, sample):
     
@@ -72,7 +85,7 @@ class Trainer:
         g_input = self.sample2gen_input(sample)
 
         dest_fake = self.g_net(g_input)
-        d_output_fake = self.d_net(g_input, dest_fake)
+        d_output_fake = self.d_net(g_input, dest_fake) # Modify to accept mask_gen_output
 
         loss_val = sum(self.g_loss(o) for o in d_output_fake.final)
 
@@ -86,8 +99,8 @@ class Trainer:
 
         g_input = self.sample2gen_input(sample)
         # call detach to not compute gradients for generator
-        dest_fake = self.g_net(g_input).detach()
-        dest_real = torch.cat([sample[key] for key in self.dest], 1)
+        dest_fake = self.g_net(g_input).detach() # Modify to mask using mask_gen_output
+        dest_real = torch.cat([sample[key] for key in self.dest], 1) # Modify to just read in unmasked for the number of time steps
 
         disc_real = self.d_net(g_input, dest_real).final
         disc_fake = self.d_net(g_input, dest_fake).final
@@ -115,6 +128,7 @@ class Trainer:
                 
                 # Code block below feeds the first sample into the generator and outputs it to an rgb image in results - DG
                 # It now also extracts the ground truth sample, the true label, and the true dem
+                # 6/6 - implement this in a function that we can call instead.
                
                 """
                 if idx == 100:
