@@ -121,7 +121,8 @@ def args2dict(args):
         "input": args.input,
         "output": args.output,
         "time_steps": args.time_steps,
-        "mask_position": args.mask_position
+        "mask_position": args.mask_position,
+        "n_bands": args.n_bands
     }
 
     return {"model": model, "training": train, "dataset": data}
@@ -145,8 +146,8 @@ def get_generator(config):
 
     # Generator for gap filling task
     if config["dataset"]["name"]=="gapfill":
-        # Set input channels N_CHANNELS multiplied by number of time steps
-        input_nc = dset_class.N_CHANNELS * config["dataset"]["time_steps"]
+        # Set input channels of n_bands multiplied by number of time steps
+        input_nc = config["dataset"]["n_bands"] * config["dataset"]["time_steps"]
         # Set output channels to equal input_nc
         output_nc = input_nc
         return models.generator.ResnetEncoderDecoder(
@@ -182,21 +183,22 @@ def get_discriminator(config):
     -------
     torch.nn.Model of discriminator
     """
-    dset_class = getattr(datasets, config["dataset"]["name"])
+    if config["dataset"]["name"] == "drc":
+        dset_class = getattr(datasets, config["dataset"]["name"])
     # generator conditioned on this input
-    
-    gen_input_nc = sum(
-        dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg"
-    )
-    if "seg" in config["dataset"]["input"]:
-        gen_input_nc += dset_class.N_LABELS
 
-    disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"][0]]
+        gen_input_nc = sum(
+            dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg"
+        )
+        if "seg" in config["dataset"]["input"]:
+            gen_input_nc += dset_class.N_LABELS
+
+        disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"][0]]
 
     # Input number of time steps of conditions + number of time steps of output, multiplied by channels of the imagery.
     # As input_nc = output_nc, we can multiply input nc (time steps) by 2 and then multiply by n channels.
     if config["dataset"]["name"]=="gapfill":
-        disc_input_nc = (config["dataset"]["time_steps"]) * dset_class.N_CHANNELS * 2
+        disc_input_nc = config["dataset"]["time_steps"] * config["dataset"]["n_bands"] * 2
     
     # Downsampling is done in the multiscale discriminator,
     # i.e., all discriminators are identically configures

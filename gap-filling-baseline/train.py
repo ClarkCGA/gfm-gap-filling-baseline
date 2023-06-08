@@ -120,9 +120,7 @@ train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
 train_dataloader = torch.utils.data.DataLoader(
     dataset,
     batch_size=args.batch_size,
-    sampler=train_sampler,
-    num_workers=args.num_workers,
-)
+    sampler=train_sampler)
 
 trainer.train(train_dataloader, args.epochs)
 

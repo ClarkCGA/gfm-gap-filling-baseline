@@ -54,6 +54,9 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--n_bands", type=int, default=4, help="Number of spectral bands"
+    )
+    parser.add_argument(
         "--time_steps", type=int, default=3, help="Number of time steps for gap filling dataset"
     )
     
@@ -147,7 +150,8 @@ def get_dataset(config, split, transforms):
     if name == "gapfill":
         time_steps = config["dataset"]["time_steps"]
         mask_position = config["dataset"]["mask_position"]
-        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position)
+        n_bands = config["dataset"]["n_bands"]
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))

@@ -93,7 +93,7 @@ class PatchGAN(nn.Module):
             either the real sample or the fake one created by the generator
 
         """
-        x = torch.cat([gi for gi in gen_input.values()] + [real_or_fake], dim=1)
+        x = torch.cat([gen_input] + [real_or_fake], dim=1)
 
         xs = []
 
@@ -165,9 +165,7 @@ class Multiscale(nn.Module):
             xs[disc_name] = disc(gen_input, real_or_fake)
 
             # downsample input
-            gen_input = {
-                k: torch.nn.functional.avg_pool2d(v, 2) for k, v in gen_input.items()
-            }
+            gen_input = torch.nn.functional.avg_pool2d(gen_input, 2)
             real_or_fake = torch.nn.functional.avg_pool2d(real_or_fake, 2)
 
         # concatenate output of discriminators

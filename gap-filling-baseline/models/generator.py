@@ -196,94 +196,15 @@ class ResnetEncoderDecoder(nn.Module):
         self.decoder = Decoder(body_nc, output_nc, n_downsample)
 
     def forward(self, gen_input):
-        x = torch.cat([gi for gi in gen_input.values()], dim=1)
+        x = gen_input[0]
 
         x = self.encoder(x)
         x = self.body(x)
         x = self.decoder(x)
+        x = x * (1 - gen_input[1])
 
         return x
 
     @property
     def input_nc(self):
         return self.encoder.input_nc
-
-
-class SPADEResnetEncoderDecoder(nn.Module):
-    def __init__(
-        self,
-        input_nc,
-        label_nc,
-        init_nc=64,
-        output_nc=3,
-        init_kernel_size=7,
-        n_downsample=4,
-        n_resnet_blocks=9,
-    ):
-        super().__init__()
-
-        get_spade_block = lambda inc, outc: arch.SPADEResnetBlock(inc, outc, label_nc)
-        get_spade_downsampler = lambda inc: arch.SpadeDownsampler(inc, label_nc)
-
-        self.encoder = Encoder(
-            input_nc, init_nc, init_kernel_size, n_downsample, get_spade_downsampler
-        )
-
-        body_nc = init_nc * 2 ** n_downsample
-
-        self.body = Body(body_nc, n_resnet_blocks, get_spade_block)
-
-        self.decoder = Decoder(body_nc, output_nc, n_downsample, get_spade_block)
-
-    def forward(self, gen_input):
-        # get segmentation map
-        segmap = gen_input["seg"]
-
-        # concatenate all other inputs
-        x = torch.cat([v for k, v in gen_input.items() if k != "seg"], dim=1)
-
-        x = self.encoder(x, segmap)
-        x = self.body(x, segmap)
-        x = self.decoder(x, segmap)
-
-        return x
-
-
-class SPADEGenerator(nn.Module):
-    def __init__(
-        self, label_nc, init_nc=256, output_nc=3, n_mid_stages=2, n_up_stages=3
-    ):
-        super().__init__()
-
-        self.label_nc = label_nc
-
-        # iniital embedding of segmentation map
-        init_kernel_size = 3
-        self.init_conv = nn.Sequential(
-            nn.ReflectionPad2d(init_kernel_size // 2),
-            spectral_norm(nn.Conv2d(label_nc, init_nc, init_kernel_size, padding=0)),
-            nn.ReLU(),
-        )
-
-        get_spade_block = lambda inc, outc: arch.SPADEResnetBlock(inc, outc, label_nc)
-
-        self.head = Body(init_nc, n_mid_stages, get_spade_block)
-
-        self.decoder = Decoder(init_nc, output_nc, n_up_stages, get_spade_block)
-
-    def forward(self, gen_input):
-        segmap = gen_input["seg"]
-        # Input dimension deterime final output dimension
-        shape_ds = self.decoder.input_shape(segmap.shape[-2:])
-        segmap_ds = torch.nn.functional.interpolate(segmap, size=shape_ds)
-
-        x = self.init_conv(segmap_ds)
-
-        x = self.head(x, segmap)
-        x = self.decoder(x, segmap)
-
-        return x
-
-    @property
-    def input_nc(self):
-        return self.label_nc

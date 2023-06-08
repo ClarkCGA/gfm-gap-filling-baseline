@@ -42,50 +42,13 @@ class Trainer:
         self.g_loss = loss.HingeGenerator()
         self.d_loss = loss.HingeDiscriminator()
 
-    def sample2gen_input(self, sample):
-        
-        if self.src == ["img"]: # Create a generator input dictionary containing masked cloud scenes where they exist
-            # Create empty dictionary
-            gen_input = {}
-            # Sorted list of time steps as integers with no duplicates
-            time_steps = sorted(list(set([int(k[-1]) for k in sample.keys()])))
-            # Add masked images to the gen input
-            for t in time_steps:
-                gen_input[f"masked{t}"] = sample[f"masked{t}"]
-            
-            return gen_input
-
-        else:
-            return {src: sample[src] for src in self.src}
-
-    def sample2disc_input(self, sample):
-        # Create empty dictionary
-        disc_input = {}
-            # Sorted list of time steps as integers with no duplicates
-        time_steps = sorted(list(set([int(k[-1]) for k in sample.keys()])))
-            # Add masked images to the disc input in order
-        for t in time_steps:
-            disc_input[f"masked{t}"] = sample[f"masked{t}"]
-        return disc_input
-    
-    def mask_gen_output(self, sample, gen_output):
-        # function to take the gen output and mask it by the cloud mask at that position in the sample, to compare with unmasked
-        # Inputs:
-        # sample - a dict, keys are names of tensors and values are the tensors themselves
-        # gen_output - a tensor of shape B, H, W, C, with C = number of time steps * number of channels
-        # Create masking tensor of identical shape to gen_output, with cloud masking locations equal to 1, by concatenating cloud masks
-        mask = torch.cat([sample[key] for key in sample if "cloud" in key], 1)
-        masked_gen_output = gen_output * mask
-        return masked_gen_output
-
     def g_one_step(self, sample):
-    
         self.g_optim.zero_grad()
 
-        g_input = self.sample2gen_input(sample)
+        g_input = [sample["masked"], sample["cloud"]] # Generator input is the masked ground truth
 
         dest_fake = self.g_net(g_input)
-        d_output_fake = self.d_net(g_input, dest_fake) # Modify to accept mask_gen_output
+        d_output_fake = self.d_net(g_input[0], dest_fake)
 
         loss_val = sum(self.g_loss(o) for o in d_output_fake.final)
 
@@ -97,13 +60,13 @@ class Trainer:
     def d_one_step(self, sample):
         self.d_optim.zero_grad()
 
-        g_input = self.sample2gen_input(sample)
-        # call detach to not compute gradients for generator
-        dest_fake = self.g_net(g_input).detach() # Modify to mask using mask_gen_output
-        dest_real = torch.cat([sample[key] for key in self.dest], 1) # Modify to just read in unmasked for the number of time steps
+        g_input = [sample["masked"], sample["cloud"]]
 
-        disc_real = self.d_net(g_input, dest_real).final
-        disc_fake = self.d_net(g_input, dest_fake).final
+        dest_fake = self.g_net(g_input).detach()
+        dest_real = sample["unmasked"] # We are comparing generated unmasked values to the unmasked ground truth.
+
+        disc_real = self.d_net(g_input[0], dest_real).final
+        disc_fake = self.d_net(g_input[0], dest_fake).final
 
         loss_val = sum(
             self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake)
@@ -122,7 +85,6 @@ class Trainer:
             running_d_loss = torch.tensor(0.0, requires_grad=False)
 
             for idx, sample in enumerate(dataloader):
-
                 sample = {k: v.to(device) for k, v in sample.items()}
                 g_loss = self.g_one_step(sample)
                 running_g_loss += g_loss.item()
