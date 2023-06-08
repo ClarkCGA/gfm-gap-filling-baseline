@@ -8,7 +8,7 @@ Run using:
 docker run -v "$PWD/data:/workspace/gap-filling-baseline/data" --rm -it --runtime=nvidia --gpus all cgan
 
 The command line input for running train.py with the drc data is as follows: 
-python -m train.py --epochs 1 --batch_size 16 --model_cap 16 --lbda 5.0 --num_workers 1 --dataset drc --dataroot ./data --input dem seg --output rgb
+python -m train.py --epochs 1 --batch_size 16 --model_cap 16 --num_workers 1 --dataset drc --dataroot ./data --input dem seg --output rgb
 
 The easiest way to modulate the CUDA memory demands of the code is to modify batch size and model capacity.
 

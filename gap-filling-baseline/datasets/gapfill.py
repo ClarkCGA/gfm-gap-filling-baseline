@@ -31,11 +31,9 @@ class GAPFILL(VisionDataset):
 
     Output of __getitem__ method:
     ----------
-    A dictionary of tifs for a given sample with the following key tensor pairs for each given time step t:
-    "truth{t}" : A tensor of the ground truth, unmasked, cloud free satellite imagery
-    "cloud{t}" : A binary cloud mask tensor for each time step that is given in command line arguments
-    "masked{t}" : A tensor of the ground truth with cloudy areas set to 0 according to the matching cloud mask
-    "unmasked{t} : A tensor of the ground truth with non-cloudy areas set to 0 according to the matching cloud mask
+    A dictionary of tifs for a given spatial extent with the following key tensor pairs:
+    "masked{t}" : A tensor of the ground truth with cloudy areas set to 0 according to the matching cloud mask, time steps are stacked in C dimension
+    "unmasked{t} : A tensor of the ground truth with non-cloudy areas set to 0 according to the matching cloud mask, time steps are stacked in C dimension
     """
 
     splits = ["train", "test"]
@@ -76,8 +74,7 @@ class GAPFILL(VisionDataset):
         def read_tif_as_np_array(path):
             with rasterio.open(path) as src:
                 return src.read()
-
-        # Read all ground truths of the same spatial extent into the sample dictionary, excluding cloud scenes
+        
         sample = {
             timestep: read_tif_as_np_array(self.tif_paths[timestep][index]) for timestep in self.timesteps
         }

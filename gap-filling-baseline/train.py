@@ -7,8 +7,6 @@ import torch.distributed
 import numpy as np
 import yaml
 
-import datasets.nrw
-import datasets.dfc
 import datasets.drc
 import options.common
 import options.gan
@@ -104,41 +102,6 @@ if args.local_rank == 0:
 g_net = options.gan.get_generator(CONFIG).to(device)
 d_net = options.gan.get_discriminator(CONFIG).to(device)
 
-#####################
-#                   #
-# Distributed setup #
-#                   #
-#####################
-
-
-# separate processing groups for generator and discriminator
-# https://discuss.pytorch.org/t/calling-distributeddataparallel-on-multiple-modules/38055
-"""
-def setup(rank, world_size):
-    os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '12355'
-
-    # initialize the process group
-    dist.init_process_group("gloo", rank=rank, world_size=world_size)
-
-g_pg = torch.distributed.new_group(range(torch.distributed.get_world_size()))
-g_net = torch.nn.SyncBatchNorm.convert_sync_batchnorm(g_net, process_group=g_pg)
-g_net = torch.nn.parallel.DistributedDataParallel(
-    g_net.cuda(args.local_rank),
-    device_ids=[args.local_rank],
-    output_device=args.local_rank,
-    process_group=g_pg,
-)
-
-d_pg = torch.distributed.new_group(range(torch.distributed.get_world_size()))
-# no batch norms in discriminator that need to be synced
-d_net = torch.nn.parallel.DistributedDataParallel(
-    d_net.cuda(args.local_rank),
-    device_ids=[args.local_rank],
-    output_device=args.local_rank,
-    process_group=d_pg,
-)
-"""
 ############
 #          #
 # Training #
