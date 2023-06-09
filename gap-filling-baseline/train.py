@@ -111,8 +111,9 @@ d_net = options.gan.get_discriminator(CONFIG).to(device)
 trainer = Trainer(
     g_net,
     d_net,
-    args.input,
-    args.output,
+    args.visualization,
+    args.n_bands,
+    args.time_steps,
     out_dir=OUT_DIR
 )
 

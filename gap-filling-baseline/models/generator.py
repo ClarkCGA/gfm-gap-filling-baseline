@@ -201,7 +201,7 @@ class ResnetEncoderDecoder(nn.Module):
         x = self.encoder(x)
         x = self.body(x)
         x = self.decoder(x)
-        x = x * (1 - gen_input[1])
+        x = x * gen_input[1]
 
         return x
 

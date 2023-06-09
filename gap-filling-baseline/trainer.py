@@ -1,11 +1,11 @@
 import logging
 
 import torch
+import torchvision
 import tqdm
 import numpy as np
 import loss
 from PIL import Image
-import imageio
 
 logger = logging.getLogger(__name__)
 
@@ -19,28 +19,58 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
-        self, g_net, d_net, src=["dem", "seg"], dest="rgb", out_dir=None
+        self, g_net, d_net, visualization, n_bands, time_steps, out_dir=None
     ):
         
         self.rank = 0
 
-        self.src = src
-        self.dest = dest
-
         self.d_net = d_net
         self.g_net = g_net
+
+        self.visualization = visualization
+        self.n_bands = n_bands
+        self.time_steps = time_steps
 
         self.out_dir = out_dir
 
         self.g_optim = torch.optim.Adam(
-            self.g_net.parameters(), lr=0.00001, betas=(0, 0.9)
+            self.g_net.parameters(), lr=0.00002, betas=(0, 0.9)
         )
         self.d_optim = torch.optim.Adam(
-            self.d_net.parameters(), lr=0.00004, betas=(0, 0.9)
+            self.d_net.parameters(), lr=0.00008, betas=(0, 0.9)
         )
 
         self.g_loss = loss.HingeGenerator()
         self.d_loss = loss.HingeDiscriminator()
+
+    def visualize_tcc(self, n_epoch, idx, sample, dest_fake):
+        masked = []
+        generated = []
+        unmasked = []
+        for t in range(1, self.time_steps+1):
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            cloud = sample["cloud"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone()
+            cloud_masked = torch.where(cloud == 1, torch.tensor(1), masked_img)
+            cloud_masked = torch.nn.functional.pad(cloud_masked, (2,2,2,2), value=0)
+            masked.append(cloud_masked)
+        for t in range(1, self.time_steps+1):
+            gen_img = dest_fake[0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            gen_truth = torch.where(gen_img != 0, gen_img, masked_img)
+            gen_truth = torch.nn.functional.pad(gen_truth, (2,2,2,2), value=0)
+            generated.append(gen_truth)
+        for t in range(1, self.time_steps+1):
+            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            unmasked_img += masked_img
+            unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
+            unmasked.append(unmasked_img)
+        masked = torch.cat(masked, dim=2)
+        generated = torch.cat(generated, dim=2)
+        unmasked = torch.cat(unmasked, dim=2)
+        torchvision.utils.save_image(
+            torch.cat([masked]+[generated]+[unmasked], dim=1), self.out_dir/ "epoch{:04}_idx{:04}.jpg".format(n_epoch, idx),
+        )
 
     def g_one_step(self, sample):
         self.g_optim.zero_grad()
@@ -57,13 +87,16 @@ class Trainer:
 
         return loss_val
 
-    def d_one_step(self, sample):
+    def d_one_step(self, n_epoch, idx, sample):
         self.d_optim.zero_grad()
 
         g_input = [sample["masked"], sample["cloud"]]
 
         dest_fake = self.g_net(g_input).detach()
         dest_real = sample["unmasked"] # We are comparing generated unmasked values to the unmasked ground truth.
+
+        if idx  == 1 and self.visualization == "image":
+            self.visualize_tcc(n_epoch, idx, sample, dest_fake)
 
         disc_real = self.d_net(g_input[0], dest_real).final
         disc_fake = self.d_net(g_input[0], dest_fake).final
@@ -89,7 +122,7 @@ class Trainer:
                 g_loss = self.g_one_step(sample)
                 running_g_loss += g_loss.item()
 
-                d_loss = self.d_one_step(sample)
+                d_loss = self.d_one_step(n_epoch, idx, sample)
                 running_d_loss += d_loss.item()
 
                 if self.rank == 0:

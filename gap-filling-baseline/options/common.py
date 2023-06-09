@@ -63,15 +63,11 @@ def get_parser():
     parser.add_argument(
         "--mask_position",
         type=int,
-        default=[1],
+        default=[2],
         nargs="+",
         help="List of positions of mask in time steps - first time step = 1, last time step = input of --time_steps",
     )
-
-    parser.add_argument(
-        "--num_workers", default=1, type=int, help="Number of workers for data loader.",
-    )
-
+    
     parser.add_argument(
         "--out_dir",
         type=pathlib.Path,

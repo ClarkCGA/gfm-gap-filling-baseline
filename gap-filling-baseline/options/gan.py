@@ -16,23 +16,7 @@ def get_parser():
     parser = common.get_parser()
 
     # Add GAN specific arguments to the parser.
-    parser.add_argument(
-        "--input",
-        nargs="+",
-        default="seg",
-        help="Input of the generator. Depends on the dataset.",
-    )
-    parser.add_argument(
-        "--concat",
-        action="store_true",
-        help="Concatenate inputs before feeding the generator.",
-    )
-    parser.add_argument(
-        "--output",
-        default="rgb",
-        nargs="+",
-        help="Output of the generator.",
-    )
+
     parser.add_argument(
         "--local_rank", type=int, default=0, help="for distributed training"
     )
@@ -55,6 +39,13 @@ def get_parser():
         type=int,
         help="Number of scales for multiscale discriminator",
     )
+    parser.add_argument(
+        "--visualization",
+        default=None,
+        type=str,
+        choices=["image"],
+        help="Visualization style during training loop.",
+    )
 
     return parser
 
@@ -72,18 +63,14 @@ def args2str(args):
 
     """
 
-    # translate what to what
-    trans_str = "_".join(args.input) + "2{}".format(args.output[0])
 
     # training arguments
-    train_str = "{args.dataset}_{w2w}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}".format(
-        args=args, w2w=trans_str
+    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}".format(
+        args=args
     )
 
     if args.seed:
         train_str += "_rs{args.seed}".format(args=args)
-    if args.concat:
-        train_str += "_concat"
 
     datestr = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
 
@@ -108,9 +95,7 @@ def args2dict(args):
 
     # model_parameters
     model_args = ["model_cap", "n_sampling", "n_scales"]
-    if args.concat:
-        model_args.append("concat")
-    train_args = ["crop", "resize", "batch_size", "epochs"]
+    train_args = ["crop", "resize", "batch_size", "epochs", "visualization"]
     if args.seed:
         train_args.append("seed")
     model = {param: getattr(args, param) for param in model_args}
@@ -118,8 +103,6 @@ def args2dict(args):
     data = {
         "name": args.dataset,
         "root": args.dataroot,
-        "input": args.input,
-        "output": args.output,
         "time_steps": args.time_steps,
         "mask_position": args.mask_position,
         "n_bands": args.n_bands

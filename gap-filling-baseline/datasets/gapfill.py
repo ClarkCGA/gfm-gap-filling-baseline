@@ -84,7 +84,7 @@ class GAPFILL(VisionDataset):
         # For every specified mask position, read in a random cloud scene and add to the block of cloud masks
         for p in self.mask_position:
             cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # Read in random cloud scene
-            cloudbrick[(p-1)*self.n_bands:p*self.n_bands-1,:,:] = cloudscene # Check if this works, the code should assign cloud scene to ALL these values in the 4 channels indexed.
+            cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene # Check if this works, the code should assign cloud scene to ALL these values in the 4 channels indexed.
             del cloudscene
 
         sample = {}
