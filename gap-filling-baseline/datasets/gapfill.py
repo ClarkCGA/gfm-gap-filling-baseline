@@ -36,7 +36,7 @@ class GAPFILL(VisionDataset):
     "unmasked" : A tensor of the ground truth with non-cloudy areas set to 0 according to the matching cloud mask, time steps are stacked in C dimension
     """
 
-    splits = ["train", "test"]
+    splits = ["train", "validate"]
 
     # 6/6: This will need to be rewritten when the structure of the data becomes clearer, but the output above is the important part - DWG
     def __init__(self, root, split="train", transforms=None, time_steps=3, mask_position=[1], n_bands = 4):
@@ -55,14 +55,16 @@ class GAPFILL(VisionDataset):
 
     # Create list of all merged image chips
     def _get_tif_paths(self):
-        catalog = pd.read_csv(self.root.joinpath("chip_tracker.csv"))
+        csv = pd.read_csv(self.root.joinpath("chip_tracker.csv"))
+        catalog = csv[csv["usage"] == self.split]
         itemlist = sorted(catalog['chip_id'].tolist())
         pathlist = [self.root.joinpath(f"chip_{item}_merged.tif") for item in itemlist]
         return pathlist
     
     # Create list of all paths to clouds
     def _get_cloud_paths(self):
-        catalog = pd.read_csv(self.root.joinpath("chip_tracker.csv"))
+        csv = pd.read_csv(self.root.joinpath("chip_tracker.csv"))
+        catalog = csv[csv["usage"] == self.split]
         itemlist = sorted(catalog['chip_id'].tolist())
         pathlist = [self.root.joinpath(f"chip_{item}.mask.tif") for item in itemlist]
         return pathlist

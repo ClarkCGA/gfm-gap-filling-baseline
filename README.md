@@ -1,12 +1,15 @@
 # gfm-gap-filling-baseline
 Baseline model for gap filling as part of the GFM downstream task evaluations
 
-6/9
-The build is configured to fill cloud gaps. It also produces visualizations of generator output during the training process through a command line argument. Next steps are building code to evaluate performance, which can be used to tune the model.
+6/10
+The build is configured to fill cloud gaps. It also produces visualizations of generator output during the training process through a command line argument. It can then be used to evaluate the performance of the model and visualize results on a validation dataset.
 
-Run in docker using: '''docker run -v "$PWD/data:/workspace/gap-filling-baseline/data" --rm -it --runtime=nvidia --gpus all cgan'''
+Run in docker using: ```docker run -v "$PWD/data:/workspace/gap-filling-baseline/data" --rm -it --runtime=nvidia --gpus all cgan```
 
-Then, run: '''python -m train.py --epochs 50 --batch_size 16 --model_cap 16 --dataset gapfill --dataroot ./data/gapfill --mask_position 2 --visualization image'''
+Then, run: ```python -m train.py --epochs 50 --batch_size 16 --model_cap 16 --dataset gapfill --dataroot ./data/gapfill --mask_position 2 --visualization image```
+
+To test the model, use ```python test.py data/results/{NAME OF RESULTS FILE GENERATED IN TRAINING}/model_gnet.pt```
+This will generate visualizations of generator output for the validation dataset as well as the normalized mean squared error of that output as compared to the ground truth, normalized to the number of masked pixels.
 
 The easiest way to modulate the CUDA memory demands of the code is to modify batch size and model capacity.
 
