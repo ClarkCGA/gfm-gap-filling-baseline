@@ -75,19 +75,24 @@ class GAPFILL(VisionDataset):
     def __getitem__(self, index):
         def read_tif_as_np_array(path):
             with rasterio.open(path) as src:
-                return src.read()
+                    return src.read()
 
         # Read in merged tif as ground truth
         groundtruth = read_tif_as_np_array(self.tif_paths[index]) / 10000 # Scale factor for given image - maybe make it a command line arg later for generalizing
 
         # Initialize empty cloud mask with same dimensions as ground truth
-        cloudbrick = np.zeros_like(groundtruth)
+        # cloudbrick = np.zeros_like(groundtruth)
 
         # For every specified mask position, read in a random cloud scene and add to the block of cloud masks
-        for p in self.mask_position:
-            cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # Read in random cloud scene
-            cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene # Check if this works, the code should assign cloud scene to ALL these values in the 4 channels indexed.
-            del cloudscene
+        # for p in self.mask_position:
+        #    cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # Read in random cloud scene
+        #    cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene # Check if this works, the code should assign cloud scene to ALL these values in the 4 channels indexed.
+        #    del cloudscene
+
+        randbrick = np.random.choice([0,1], size=(1, 14, 14), p=[0.5, 0.5])
+        cloudscene = randbrick.repeat(16, axis=1).repeat(16, axis=2).repeat(4, axis=0)
+        cloudbrick = np.zeros_like(groundtruth)
+        cloudbrick[4:8, :, :] = cloudscene
 
         sample = {}
         sample['masked'] = self.cloudmask(cloudbrick, groundtruth).transpose(1,2,0).astype(np.float32)
@@ -99,6 +104,7 @@ class GAPFILL(VisionDataset):
             sample = self.transforms(sample)
 
         return sample
+
 
     @staticmethod
     def cloudmask(cloudtif, tif):

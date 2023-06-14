@@ -85,20 +85,20 @@ with torch.no_grad():
         generated = []
         unmasked = []
         for t in range(1, time_steps+1):
-            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone() * 3
+            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone().flip(0) * 3
             cloud = sample["cloud"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone()
             cloud_masked = torch.where(cloud == 1, cloud, masked_img)
             cloud_masked = torch.nn.functional.pad(cloud_masked, (2,2,2,2), value=0)
             masked.append(cloud_masked)
         for t in range(1, time_steps+1):
-            gen_img = dest_fake[0,(t-1)*n_bands:t*n_bands-1,:,:].clone() * 3
-            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone() * 3
+            gen_img = dest_fake[0,(t-1)*n_bands:t*n_bands-1,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone().flip(0) * 3
             gen_composite = torch.where(gen_img != 0, gen_img, masked_img)
             gen_composite = torch.nn.functional.pad(gen_composite, (2,2,2,2), value=0)
             generated.append(gen_composite)
         for t in range(1, time_steps+1):
-            unmasked_img = sample["unmasked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone() * 3
-            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone() * 3
+            unmasked_img = sample["unmasked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*n_bands:t*n_bands-1,:,:].clone().flip(0) * 3
             unmasked_img += masked_img
             unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
             unmasked.append(unmasked_img)
@@ -106,6 +106,6 @@ with torch.no_grad():
         generated = torch.cat(generated, dim=2)
         unmasked = torch.cat(unmasked, dim=2)
         torchvision.utils.save_image(
-            torch.cat([masked]+[generated]+[unmasked], dim=1), OUT_DIR / "test_{:04}_mse_{:.4f}.jpg".format(idx, mse_normalized),
+            torch.cat([masked]+[generated]+[unmasked], dim=1), OUT_DIR / "test_{:04}_mse_{:.4f}_3scenes50percent.jpg".format(idx, mse_normalized),
         )
 

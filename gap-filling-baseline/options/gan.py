@@ -47,6 +47,13 @@ def get_parser():
         help="Visualization style during training loop.",
     )
 
+    parser.add_argument(
+        "--alpha",
+        default=1.0,
+        type=float,
+        help="Weight given to mse relative to discriminator hinge loss during generator training",
+    )
+
     return parser
 
 
@@ -65,14 +72,14 @@ def args2str(args):
 
 
     # training arguments
-    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}".format(
+    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_alpha{args.alpha}".format(
         args=args
     )
 
     if args.seed:
         train_str += "_rs{args.seed}".format(args=args)
 
-    datestr = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M")
+    datestr = "1"
 
     idstr = "_".join([train_str, datestr])
     if args.suffix:
@@ -95,7 +102,7 @@ def args2dict(args):
 
     # model_parameters
     model_args = ["model_cap", "n_sampling", "n_scales"]
-    train_args = ["crop", "resize", "batch_size", "epochs", "visualization"]
+    train_args = ["crop", "resize", "batch_size", "epochs", "visualization", "alpha"]
     if args.seed:
         train_args.append("seed")
     model = {param: getattr(args, param) for param in model_args}
@@ -166,17 +173,6 @@ def get_discriminator(config):
     -------
     torch.nn.Model of discriminator
     """
-    if config["dataset"]["name"] == "drc":
-        dset_class = getattr(datasets, config["dataset"]["name"])
-    # generator conditioned on this input
-
-        gen_input_nc = sum(
-            dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg"
-        )
-        if "seg" in config["dataset"]["input"]:
-            gen_input_nc += dset_class.N_LABELS
-
-        disc_input_nc = gen_input_nc + dset_class.N_CHANNELS[config["dataset"]["output"][0]]
 
     # Input number of time steps of conditions + number of time steps of output, multiplied by channels of the imagery.
     # As input_nc = output_nc, we can multiply input nc (time steps) by 2 and then multiply by n channels.

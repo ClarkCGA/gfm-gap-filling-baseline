@@ -19,7 +19,7 @@ class PatchGAN(nn.Module):
 
         self.n_layers = n_layers
 
-        self.kernel_size = 4
+        self.kernel_size = 3
         self.init_nc = init_nc
         self._return_intermed = False
 
@@ -52,7 +52,7 @@ class PatchGAN(nn.Module):
 
     @property
     def padding(self):
-        return self.kernel_size // 2
+        return (self.kernel_size - 1) // 2
 
     def layer(self, input_nc, stride):
         return nn.Sequential(
@@ -155,7 +155,6 @@ class Multiscale(nn.Module):
             either the real sample or the fake one created by the generator
 
         """
-
         xs = {}
 
         # cycle through all scales

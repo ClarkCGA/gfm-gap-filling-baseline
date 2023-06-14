@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
-        self, g_net, d_net, visualization, n_bands, time_steps, out_dir=None, alpha=4
+        self, g_net, d_net, visualization, n_bands, time_steps, alpha=4, out_dir=None 
     ):
         
         self.rank = 0
@@ -34,7 +34,7 @@ class Trainer:
         self.out_dir = out_dir
 
         self.g_optim = torch.optim.Adam(
-            self.g_net.parameters(), lr=0.00008, betas=(0, 0.9)
+            self.g_net.parameters(), lr=0.0001, betas=(0, 0.9)
         )
         self.d_optim = torch.optim.Adam(
             self.d_net.parameters(), lr=0.0004, betas=(0, 0.9)
@@ -48,20 +48,20 @@ class Trainer:
         generated = []
         unmasked = []
         for t in range(1, self.time_steps+1):
-            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
             cloud = sample["cloud"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone()
             cloud_masked = torch.where(cloud == 1, cloud, masked_img)
             cloud_masked = torch.nn.functional.pad(cloud_masked, (2,2,2,2), value=0)
             masked.append(cloud_masked)
         for t in range(1, self.time_steps+1):
-            gen_img = dest_fake[0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
-            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            gen_img = dest_fake[0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
             gen_composite = torch.where(gen_img != 0, gen_img, masked_img)
             gen_composite = torch.nn.functional.pad(gen_composite, (2,2,2,2), value=0)
             generated.append(gen_composite)
         for t in range(1, self.time_steps+1):
-            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
-            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone() * 3
+            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
             unmasked_img += masked_img
             unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
             unmasked.append(unmasked_img)
@@ -79,9 +79,11 @@ class Trainer:
 
         dest_fake = self.g_net(g_input)
         gen_composite = sample["masked"] + dest_fake
-        d_output_fake = self.d_net(g_input[0], gen_composite)
 
-        loss_val = sum(self.g_loss(o) for o in d_output_fake.final)
+        d_output_fake = self.d_net(g_input[0], gen_composite).final
+        cloudmask = [torch.nn.functional.avg_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(d_output_fake))]
+
+        loss_val = sum(self.g_loss(*output) for output in zip(d_output_fake, cloudmask))
         
         # In this implementation of MSE loss, the mean squared error is normalized by the number of masked values we are generating.
         # This ensures that the model is not rewarded for non-generated pixel values.
@@ -112,12 +114,11 @@ class Trainer:
 
         disc_real = self.d_net(g_input[0], ground_truth).final
         disc_fake = self.d_net(g_input[0], gen_composite).final
+        cloudmask = [torch.nn.functional.avg_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
 
         loss_val = sum(
-            self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake)
+            self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake, cloudmask)
         )
-
-        # loss_val /= torch.mean(sample["cloud"]) # Weight by number of masked pixels - go harder on the model when there are fewer masked pixels
 
         loss_val.backward()
         self.d_optim.step()

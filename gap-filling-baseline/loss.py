@@ -14,7 +14,7 @@ class HingeDiscriminator(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, disc_real_output, disc_fake_output):
+    def forward(self, disc_real_output, disc_fake_output, cloudmask):
         """
 
         Args:
@@ -24,10 +24,10 @@ class HingeDiscriminator(nn.Module):
         """
 
         loss = -torch.mean(
-            torch.min(disc_real_output - 1, torch.zeros_like(disc_real_output))
+            torch.min(disc_real_output - 1, torch.zeros_like(disc_real_output)) * cloudmask
         )
         loss -= torch.mean(
-            torch.min(-disc_fake_output - 1, torch.zeros_like(disc_fake_output))
+            torch.min(-disc_fake_output - 1, torch.zeros_like(disc_fake_output)) * cloudmask
         )
 
         return loss
@@ -45,8 +45,8 @@ class HingeGenerator(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, disc_fake_output):
-        return -torch.mean(disc_fake_output)
+    def forward(self, disc_fake_output, cloudmask):
+        return -torch.mean(disc_fake_output * cloudmask)
 
 
 def iou(pr, gt, eps=1e-7, axis=(0, 2, 3)):
