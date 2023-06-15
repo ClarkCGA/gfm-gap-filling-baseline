@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
-        self, g_net, d_net, visualization, n_bands, time_steps, alpha=4, out_dir=None 
+        self, g_net, d_net, visualization, n_bands, time_steps, alpha=4, generator_lr = 0.00001, discriminator_lr = 0.00004, out_dir=None 
     ):
         
         self.rank = 0
@@ -30,6 +30,8 @@ class Trainer:
         self.visualization = visualization
         self.n_bands = n_bands
         self.time_steps = time_steps
+        self.generator_lr = generator_lr
+        self.discriminator_lr = discriminator_lr
 
         self.out_dir = out_dir
 

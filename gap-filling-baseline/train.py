@@ -114,6 +114,8 @@ trainer = Trainer(
     args.visualization,
     args.n_bands,
     args.time_steps,
+    args.generator_lr,
+    args.discriminator_lr,
     args.alpha,
     out_dir=OUT_DIR
 )

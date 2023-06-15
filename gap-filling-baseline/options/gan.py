@@ -48,6 +48,20 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--discriminator_lr",
+        default=0.00008,
+        type=float,
+        help="Discriminator starting learning rate",
+    )
+
+    parser.add_argument(
+        "--generator_lr",
+        default=0.00002,
+        type=float,
+        help="Generator starting learning rate",
+    )
+
+    parser.add_argument(
         "--alpha",
         default=1.0,
         type=float,
@@ -72,7 +86,7 @@ def args2str(args):
 
 
     # training arguments
-    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_alpha{args.alpha}".format(
+    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}".format(
         args=args
     )
 
@@ -102,7 +116,7 @@ def args2dict(args):
 
     # model_parameters
     model_args = ["model_cap", "n_sampling", "n_scales"]
-    train_args = ["crop", "resize", "batch_size", "epochs", "visualization", "alpha"]
+    train_args = ["crop", "resize", "batch_size", "epochs", "visualization", "generator_lr", "discriminator_lr", "alpha"]
     if args.seed:
         train_args.append("seed")
     model = {param: getattr(args, param) for param in model_args}
