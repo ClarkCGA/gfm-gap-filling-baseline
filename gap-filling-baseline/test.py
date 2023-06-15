@@ -103,9 +103,9 @@ with torch.no_grad():
             unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
             unmasked.append(unmasked_img)
         masked = torch.cat(masked, dim=2)
-        generated = torch.cat(generated, dim=2)
-        unmasked = torch.cat(unmasked, dim=2)
+        generated = torch.cat(generated, dim=2).resize(224,224)
+        unmasked = torch.cat(unmasked, dim=2).resize(224,224)
         torchvision.utils.save_image(
-            torch.cat([masked]+[generated]+[unmasked], dim=1), OUT_DIR / "test_{:04}_mse_{:.4f}_3scenes50percent.jpg".format(idx, mse_normalized),
+            torch.cat([masked]+[generated]+[unmasked], dim=1), OUT_DIR / "test_{:04}_mse_{:.4f}_50percent.jpg".format(idx, mse_normalized),
         )
 

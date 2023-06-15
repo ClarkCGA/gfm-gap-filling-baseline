@@ -196,12 +196,11 @@ class ResnetEncoderDecoder(nn.Module):
         self.decoder = Decoder(body_nc, output_nc, n_downsample)
 
     def forward(self, gen_input):
-        x = gen_input[0]
+        x = gen_input
 
         x = self.encoder(x)
         x = self.body(x)
         x = self.decoder(x)
-        x = x * gen_input[1]
 
         return x
 

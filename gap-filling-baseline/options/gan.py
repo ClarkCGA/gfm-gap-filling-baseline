@@ -146,21 +146,7 @@ def get_generator(config):
             output_nc,
             n_downsample=config["model"]["n_sampling"],
         )
-    # Maintain functionality for testing with DRC
-    else:
-        # Proposed conventional generator with SPADE norm layers everywhere
-        n_labels = dset_class.N_LABELS
-        output_nc = dset_class.N_CHANNELS[config["dataset"]["output"][0]]
-        input_nc = sum(dset_class.N_CHANNELS[it] for it in config["dataset"]["input"] if it != "seg")
-        return models.generator.SPADEResnetEncoderDecoder(
-            input_nc,
-            n_labels,
-            config["model"]["model_cap"],
-            output_nc,
-            n_downsample=config["model"]["n_sampling"],
-        )
-
-
+    
 def get_discriminator(config):
     """ returns discriminator
 
