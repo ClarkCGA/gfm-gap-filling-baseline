@@ -50,7 +50,7 @@ def get_parser():
         help="Which dataset to use: DRC or cloud gap filling?",
     )
     parser.add_argument(
-        "--dataroot", type=str, default="./data", help="Path to dataset"
+        "--dataroot", type=str, default="/workspace/data/gapfillfull", help="Path to dataset"
     )
 
     parser.add_argument(
@@ -71,7 +71,7 @@ def get_parser():
     parser.add_argument(
         "--out_dir",
         type=pathlib.Path,
-        default="./data/results",
+        default="/workspace/data/results",
         help="Where to store models, log, etc.",
     )
 
