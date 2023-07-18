@@ -1,5 +1,5 @@
 # switch to miniconda3 base as pytorch base uses python3.7
-FROM continuumio/miniconda3:latest
+FROM continuumio/miniconda3:23.3.1-0
 
 # permanent dependencies, put on top to avoid re-build
 RUN pip install --upgrade pip

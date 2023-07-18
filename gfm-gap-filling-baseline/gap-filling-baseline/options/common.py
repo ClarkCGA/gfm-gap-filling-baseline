@@ -54,7 +54,7 @@ def get_parser():
     )
 
     parser.add_argument(
-        "--n_bands", type=int, default=4, help="Number of spectral bands"
+        "--n_bands", type=int, default=6, help="Number of spectral bands"
     )
     parser.add_argument(
         "--time_steps", type=int, default=3, help="Number of time steps for gap filling dataset"

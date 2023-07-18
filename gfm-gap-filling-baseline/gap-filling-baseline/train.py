@@ -4,6 +4,7 @@ import torch
 import torch.nn
 import torch.distributed
 
+import pandas as pd
 import numpy as np
 import yaml
 
@@ -88,6 +89,7 @@ torch.cuda.set_device(device)
 train_transforms, test_transforms = options.common.get_transforms(CONFIG)
 
 dataset = options.common.get_dataset(CONFIG, split="train", transforms=train_transforms)
+dataset.cloud_catalog.to_csv(OUT_DIR / "training_clouds.csv", index=False)
 
 if args.local_rank == 0:
     logger.info(dataset)

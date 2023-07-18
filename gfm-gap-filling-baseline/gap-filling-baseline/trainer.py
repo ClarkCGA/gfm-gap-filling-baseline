@@ -60,18 +60,18 @@ class Trainer:
         generated = []
         unmasked = []
         for t in range(1, self.time_steps+1):
-            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
-            cloud = sample["cloud"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone()
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            cloud = sample["cloud"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone()
             cloud_masked = torch.where(cloud == 1, cloud, masked_img)
             cloud_masked = torch.nn.functional.pad(cloud_masked, (2,2,2,2), value=0)
             masked.append(cloud_masked)
         for t in range(1, self.time_steps+1):
-            gen_img = dest_fake[0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
+            gen_img = dest_fake[0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
             gen_img = torch.nn.functional.pad(gen_img, (2,2,2,2), value=0)
             generated.append(gen_img)
         for t in range(1, self.time_steps+1):
-            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
-            masked_img = sample["masked"][0,(t-1)*self.n_bands:t*self.n_bands-1,:,:].clone().flip(0) * 3
+            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
             unmasked_img += masked_img
             unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
             unmasked.append(unmasked_img)
