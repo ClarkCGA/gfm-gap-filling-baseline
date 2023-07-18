@@ -19,9 +19,10 @@ logger = logging.getLogger(__name__)
 
 class Trainer:
     def __init__(
-        self, g_net, d_net, visualization, n_bands, time_steps, alpha=4, generator_lr = 0.00001, discriminator_lr = 0.00004, out_dir=None 
+        self, g_net, d_net, visualization, n_bands, time_steps, generator_lr = 0.00001, discriminator_lr = 0.00004, alpha=4, local_rank=0, out_dir=None  
     ):
         
+        self.local_rank = local_rank
         self.rank = 0
         self.alpha = alpha
         self.d_net = d_net
@@ -36,10 +37,10 @@ class Trainer:
         self.out_dir = out_dir
 
         self.g_optim = torch.optim.Adam(
-            self.g_net.parameters(), lr=0.00004, betas=(0, 0.9)
+            self.g_net.parameters(), lr=self.generator_lr, betas=(0, 0.9)
         )
         self.d_optim = torch.optim.Adam(
-            self.d_net.parameters(), lr=0.0001, betas=(0, 0.9)
+            self.d_net.parameters(), lr=self.discriminator_lr, betas=(0, 0.9)
         )
 
         self.g_loss = loss.HingeGenerator()
@@ -125,7 +126,6 @@ class Trainer:
         disc_real = self.d_net(g_input, ground_truth).final
         disc_fake = self.d_net(g_input, dest_fake).final
         cloudmask = [torch.nn.functional.avg_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
-
         loss_val = sum(
             self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake, cloudmask)
         )
@@ -139,11 +139,14 @@ class Trainer:
         return loss_val
 
     def train(self, dataloader, n_epochs):
-        pbar = tqdm.tqdm(total=n_epochs)
-        device = torch.device("cuda:0")
+        pbar = tqdm.tqdm(total=n_epochs, desc="Overall Training")
+        device = torch.device(f"cuda:{self.local_rank}")
         best_loss = torch.tensor([100.0])
 
         for n_epoch in range(1, n_epochs + 1):
+            inner_pbar = tqdm.tqdm(
+                range(len(dataloader)), colour="blue", desc="Training Epoch", leave=True
+            )
             running_g_loss = torch.tensor(0.0, requires_grad=False)
             running_d_loss = torch.tensor(0.0, requires_grad=False)
             running_mse = torch.tensor(0.0, requires_grad=False)
@@ -157,6 +160,8 @@ class Trainer:
                 d_loss = self.d_one_step(n_epoch, idx, sample)
                 running_d_loss += d_loss.item()
 
+                inner_pbar.update(1)
+                
                 if self.rank == 0:
                     logger.debug(
                         "batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
@@ -177,6 +182,7 @@ class Trainer:
                 n_epoch, running_g_loss, running_d_loss, running_mse * 3
             )
 
+            inner_pbar.close()
             pbar.update(1)
             pbar.set_description(info_str)
             if self.rank == 0:

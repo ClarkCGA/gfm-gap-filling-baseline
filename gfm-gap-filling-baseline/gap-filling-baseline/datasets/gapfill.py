@@ -51,7 +51,7 @@ class GAPFILL(VisionDataset):
         self.mask_position = mask_position
         self.n_bands = n_bands
         self.cloud_range = cloud_range
-        self.tif_paths = self._get_tif_paths()[:32]
+        self.tif_paths = self._get_tif_paths()
         self.cloud_paths, self.cloud_catalog = self._get_cloud_paths()
         
         self.n_cloudpaths = len(self.cloud_paths)

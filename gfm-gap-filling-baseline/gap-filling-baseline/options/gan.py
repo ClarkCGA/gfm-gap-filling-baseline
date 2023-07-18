@@ -49,14 +49,14 @@ def get_parser():
 
     parser.add_argument(
         "--discriminator_lr",
-        default=0.00008,
+        default=0.00004,
         type=float,
         help="Discriminator starting learning rate",
     )
 
     parser.add_argument(
         "--generator_lr",
-        default=0.00002,
+        default=0.00001,
         type=float,
         help="Generator starting learning rate",
     )
@@ -86,14 +86,16 @@ def args2str(args):
 
 
     # training arguments
-    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}".format(
+    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}_range{args.cloud_range}".format(
         args=args
     )
 
     if args.seed:
         train_str += "_rs{args.seed}".format(args=args)
+    current_time = datetime.datetime.now()
 
-    datestr = "1"
+# Convert the datetime object to a string
+    datestr = current_time.strftime('%Y-%m-%d %H:%M:%S')
 
     idstr = "_".join([train_str, datestr])
     if args.suffix:
@@ -126,7 +128,8 @@ def args2dict(args):
         "root": args.dataroot,
         "time_steps": args.time_steps,
         "mask_position": args.mask_position,
-        "n_bands": args.n_bands
+        "n_bands": args.n_bands,
+        "cloud_range": args.cloud_range,
     }
 
     return {"model": model, "training": train, "dataset": data}

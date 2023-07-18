@@ -67,6 +67,14 @@ def get_parser():
         nargs="+",
         help="List of positions of mask in time steps - first time step = 1, last time step = input of --time_steps",
     )
+
+    parser.add_argument(
+        "--cloud_range",
+        type=float,
+        default=[0,1],
+        nargs="+",
+        help="Lower and upper boundaries for cloud ratios",
+    )
     
     parser.add_argument(
         "--out_dir",
@@ -147,7 +155,8 @@ def get_dataset(config, split, transforms):
         time_steps = config["dataset"]["time_steps"]
         mask_position = config["dataset"]["mask_position"]
         n_bands = config["dataset"]["n_bands"]
-        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands)
+        cloud_range = config["dataset"]["cloud_range"]
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands, cloud_range)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))

@@ -24,10 +24,10 @@ class HingeDiscriminator(nn.Module):
         """
 
         loss = -torch.mean(
-            torch.min(disc_real_output - 1, torch.zeros_like(disc_real_output)) * cloudmask
+            torch.min(disc_real_output - 1, torch.zeros_like(disc_real_output)) #* cloudmask
         ) # Below 1 is incorrectly classified as fake. Penalize according to the mean of all incorrect classifications
         loss -= torch.mean(
-            torch.min(-disc_fake_output - 1, torch.zeros_like(disc_fake_output)) * cloudmask
+            torch.min(-disc_fake_output - 1, torch.zeros_like(disc_fake_output)) #* cloudmask
         ) # Below 1 is correctly classified as fake. Reward according to the mean of all correct classifications
 
         return loss
@@ -46,7 +46,7 @@ class HingeGenerator(nn.Module):
         super().__init__()
 
     def forward(self, disc_fake_output, cloudmask):
-        return -torch.mean(disc_fake_output * cloudmask)
+        return -torch.mean(disc_fake_output) #* cloudmask)
         # Take the average classification of the discriminator as loss
 
 

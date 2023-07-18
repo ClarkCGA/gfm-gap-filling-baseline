@@ -41,8 +41,7 @@ logging.basicConfig(
     filename=OUT_DIR / "log_training.txt",
 )
 logger = logging.getLogger()
-if args.local_rank == 0:
-    logger.info("Saving logs, configs and models to %s", OUT_DIR)
+logger.info("Saving logs, configs and models to %s", OUT_DIR)
 
 
 ###################################
@@ -91,8 +90,7 @@ train_transforms, test_transforms = options.common.get_transforms(CONFIG)
 dataset = options.common.get_dataset(CONFIG, split="train", transforms=train_transforms)
 dataset.cloud_catalog.to_csv(OUT_DIR / "training_clouds.csv", index=False)
 
-if args.local_rank == 0:
-    logger.info(dataset)
+logger.info(dataset)
 
 
 ################################
@@ -119,7 +117,9 @@ trainer = Trainer(
     args.generator_lr,
     args.discriminator_lr,
     args.alpha,
-    out_dir=OUT_DIR
+    args.local_rank,
+    out_dir=OUT_DIR,
+    
 )
 
 train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
