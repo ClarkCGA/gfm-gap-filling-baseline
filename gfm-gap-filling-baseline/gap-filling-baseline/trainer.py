@@ -93,18 +93,19 @@ class Trainer:
         g_input = sample["masked"] # Generator input is the masked ground truth
 
         dest_fake = self.g_net(g_input)
-        gen_masked = dest_fake * sample["cloud"]
+        gen_unmasked = dest_fake * sample["cloud"]
+        gen_reconstruction = gen_unmasked + sample["masked"]
 
-        d_output_fake = self.d_net(g_input, dest_fake).final
+        d_output_fake = self.d_net(g_input, gen_reconstruction).final
         
         # Create a list of downscaled cloud masks to weight discriminator outputs
-        cloudmask = [torch.nn.functional.avg_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(d_output_fake))]
+        cloudmask = [torch.nn.functional.max_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(d_output_fake))]
 
         loss_val = sum(self.g_loss(*output) for output in zip(d_output_fake, cloudmask))
         
         # In this implementation of MSE loss, the mean squared error is normalized by the number of masked values we are generating.
         # This ensures that the model is not rewarded for non-generated pixel values.
-        mse_normalized = torch.nn.functional.mse_loss(gen_masked, sample["unmasked"]) 
+        mse_normalized = torch.nn.functional.mse_loss(gen_unmasked, sample["unmasked"]) 
         mse_normalized /= torch.mean(sample["cloud"])
 
         loss_val += self.alpha * mse_normalized
@@ -119,13 +120,16 @@ class Trainer:
 
         g_input = sample["masked"]
 
+
         dest_fake = self.g_net(g_input).detach()
+        gen_unmasked = dest_fake * sample["cloud"]
+        gen_reconstruction = gen_unmasked + sample["masked"]
 
         ground_truth = sample["masked"] + sample["unmasked"]
 
         disc_real = self.d_net(g_input, ground_truth).final
-        disc_fake = self.d_net(g_input, dest_fake).final
-        cloudmask = [torch.nn.functional.avg_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
+        disc_fake = self.d_net(g_input, gen_reconstruction).final
+        cloudmask = [torch.nn.functional.max_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
         loss_val = sum(
             self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake, cloudmask)
         )

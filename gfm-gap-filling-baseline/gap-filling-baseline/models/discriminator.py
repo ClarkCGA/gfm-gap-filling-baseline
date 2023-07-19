@@ -19,7 +19,7 @@ class PatchGAN(nn.Module):
 
         self.n_layers = n_layers
 
-        self.kernel_size = 3
+        self.kernel_size = 5
         self.init_nc = init_nc
         self._return_intermed = False
 
