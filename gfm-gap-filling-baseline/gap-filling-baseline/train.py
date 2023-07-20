@@ -14,6 +14,7 @@ import options.gan
 from trainer import Trainer
 
 
+
 ##################################
 #                                #
 # Parsing command line arguments #
@@ -87,10 +88,19 @@ torch.cuda.set_device(device)
 
 train_transforms, test_transforms = options.common.get_transforms(CONFIG)
 
-dataset = options.common.get_dataset(CONFIG, split="train", transforms=train_transforms)
-dataset.cloud_catalog.to_csv(OUT_DIR / "training_clouds.csv", index=False)
+train_dataset = options.common.get_dataset(CONFIG, split="train", transforms=train_transforms)
+train_dataset.cloud_catalog.to_csv(OUT_DIR / "training_clouds.csv", index=False)
 
-logger.info(dataset)
+val_dataset = options.common.get_dataset(CONFIG, split="validate", transforms=train_transforms)
+val_dataset.cloud_catalog.to_csv(OUT_DIR / "validate_clouds.csv", index=False)
+
+print(f"Number of training images: {len(train_dataset)}")
+print(f"Number of training cloud masks: {train_dataset.n_cloudpaths}")
+print(f"Number of validation images: {len(val_dataset)}")
+print(f"Number of validation cloud masks: {val_dataset.n_cloudpaths}")
+
+logger.info(train_dataset)
+logger.info(val_dataset)
 
 
 ################################
@@ -122,13 +132,19 @@ trainer = Trainer(
     
 )
 
-train_sampler = torch.utils.data.RandomSampler(dataset, replacement=True)
+train_sampler = torch.utils.data.RandomSampler(train_dataset, replacement=True)
 train_dataloader = torch.utils.data.DataLoader(
-    dataset,
+    train_dataset,
     batch_size=args.batch_size,
     sampler=train_sampler)
 
-trainer.train(train_dataloader, args.epochs)
+val_sampler = torch.utils.data.SequentialSampler(val_dataset)
+val_dataloader = torch.utils.data.DataLoader(
+    val_dataset,
+    batch_size=args.batch_size,
+    sampler=val_sampler)
+
+trainer.train(train_dataloader, val_dataloader, args.epochs)
 
 ##########
 #        #

@@ -6,6 +6,7 @@ import tqdm
 import numpy as np
 import loss
 from PIL import Image
+from torchmetrics.image import StructuralSimilarityIndexMeasure
 
 logger = logging.getLogger(__name__)
 
@@ -46,17 +47,34 @@ class Trainer:
         self.g_loss = loss.HingeGenerator()
         self.d_loss = loss.HingeDiscriminator()
 
-    def visualize_tcc(self, n_epoch, idx, sample, dest_fake, disc_real, disc_fake):
-                
+    def visualize_tcc(self, n_epoch, idx, sample, dest_fake, disc_real, disc_fake, cloudmask):
+
+        cloudmask_img = [tensor[0:1,6:7,:,:].clone().detach() for tensor in cloudmask]
+        cloudmask_rescale = [torch.nn.functional.interpolate(tensor, size=(224,224), mode='nearest')[0,:,:,:] for tensor in cloudmask_img]
+        cloudmask_pad = [torch.nn.functional.pad(tensor, (2,2,2,2), value=1) for tensor in cloudmask_rescale]
+        cloudmask_pad = [tensor.expand(3,228,228) for tensor in cloudmask_pad]
+
+        red_tensor = torch.zeros_like(cloudmask_pad[0])
+        red_tensor[0] = 1
+        
         disc_real_img = [tensor[0:1,:,:,:].clone().detach() for tensor in disc_real]
         disc_real_rescale = [torch.nn.functional.interpolate(tensor, size=(224,224), mode='nearest')[0,:,:,:] for tensor in disc_real_img]
         disc_real_pad = [torch.nn.functional.pad(tensor, (2,2,2,2), value=0) for tensor in disc_real_rescale]
         disc_real_pad = [tensor.expand(3,228,228) for tensor in disc_real_pad]
+        disc_real_pad = [tensor1 * tensor2 for tensor1, tensor2 in zip(disc_real_pad, cloudmask_pad)]
+        disc_real_pad = [
+            torch.where(cloud_tensor == 0, red_tensor, disc_tensor) for disc_tensor, cloud_tensor in zip(disc_real_pad, cloudmask_pad)
+        ]
 
         disc_fake_img = [tensor[0:1,:,:,:].clone().detach() for tensor in disc_fake]
         disc_fake_rescale = [torch.nn.functional.interpolate(tensor, size=(224,224), mode='nearest')[0,:,:,:] for tensor in disc_fake_img]
         disc_fake_pad = [torch.nn.functional.pad(tensor, (2,2,2,2), value=0) for tensor in disc_fake_rescale]
         disc_fake_pad = [tensor.expand(3,228,228) for tensor in disc_fake_pad]
+        disc_fake_pad = [tensor1 * tensor2 for tensor1, tensor2 in zip(disc_fake_pad, cloudmask_pad)]
+        disc_fake_pad = [
+            torch.where(cloud_tensor == 0, red_tensor, disc_tensor) for disc_tensor, cloud_tensor in zip(disc_fake_pad, cloudmask_pad)
+        ]
+        
         masked = []
         generated = []
         unmasked = []
@@ -68,26 +86,30 @@ class Trainer:
             masked.append(cloud_masked)
         for t in range(1, self.time_steps+1):
             gen_img = dest_fake[0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
-            gen_img = torch.nn.functional.pad(gen_img, (2,2,2,2), value=0)
-            generated.append(gen_img)
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            cloud = sample["cloud"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone()
+            gen_cloud_masked = gen_img * cloud
+            gen_reconstruction = gen_cloud_masked + masked_img
+            gen_result = torch.nn.functional.pad(gen_reconstruction, (2,2,2,2), value=0)
+            generated.append(gen_result)
         for t in range(1, self.time_steps+1):
             unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
             masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
             unmasked_img += masked_img
             unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
             unmasked.append(unmasked_img)
-        zeros = disc_fake_pad[0] * 0
-        masked.extend([zeros, zeros])
-        generated.extend(disc_fake_pad)
-        unmasked.extend(disc_real_pad)
-        masked = torch.cat(masked, dim=2)
-        generated = torch.cat(generated, dim=2)
-        unmasked = torch.cat(unmasked, dim=2)
+        generated[0]=disc_fake_pad[0]
+        generated[2]=disc_fake_pad[1]
+        unmasked[0]=disc_real_pad[0]
+        unmasked[2]=disc_real_pad[1]
+        masked = torch.cat(masked, dim=1)
+        generated = torch.cat(generated, dim=1)
+        unmasked = torch.cat(unmasked, dim=1)
         torchvision.utils.save_image(
-            torch.cat([masked]+[generated]+[unmasked], dim=1), self.out_dir/ "epoch{:04}_idx{:04}_gen.jpg".format(n_epoch, idx),
+            torch.cat([masked]+[generated]+[unmasked], dim=2), self.out_dir/ "epoch{:04}_idx{:04}_gen.jpg".format(n_epoch, idx),
         )
 
-    def g_one_step(self, sample):
+    def g_one_step(self, sample, split):
         self.g_optim.zero_grad()
 
         g_input = sample["masked"] # Generator input is the masked ground truth
@@ -107,15 +129,17 @@ class Trainer:
         # This ensures that the model is not rewarded for non-generated pixel values.
         mse_normalized = torch.nn.functional.mse_loss(gen_unmasked, sample["unmasked"]) 
         mse_normalized /= torch.mean(sample["cloud"])
-
+        StructuralSimilarity = StructuralSimilarityIndexMeasure(data_range=1.0)
+        ssim = StructuralSimilarity(gen_unmasked[:,6:12,:,:].detach().cpu(), sample["unmasked"][:,6:12,:,:].detach().cpu())
         loss_val += self.alpha * mse_normalized
 
-        loss_val.backward()
-        self.g_optim.step()
+        if split == "train":
+            loss_val.backward()
+            self.g_optim.step()
 
-        return loss_val, mse_normalized
+        return loss_val, mse_normalized, ssim
 
-    def d_one_step(self, n_epoch, idx, sample):
+    def d_one_step(self, n_epoch, idx, sample, split):
         self.d_optim.zero_grad()
 
         g_input = sample["masked"]
@@ -134,63 +158,117 @@ class Trainer:
             self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake, cloudmask)
         )
         
-        if idx  == 1 and self.visualization == "image":
-            self.visualize_tcc(n_epoch, idx, sample, dest_fake, disc_real, disc_fake)
+        if idx  == 8 and split == "validate" and self.visualization == "image":
+            self.visualize_tcc(n_epoch, idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
 
-        loss_val.backward()
-        self.d_optim.step()
+        if split == "train":
+            loss_val.backward()
+            self.d_optim.step()
 
         return loss_val
 
-    def train(self, dataloader, n_epochs):
-        pbar = tqdm.tqdm(total=n_epochs, desc="Overall Training")
+    def train(self, train_dataloader, val_dataloader, n_epochs):
+        pbar = tqdm.tqdm(total=n_epochs, desc="Overall Training", leave=True)
         device = torch.device(f"cuda:{self.local_rank}")
         best_loss = torch.tensor([100.0])
 
         for n_epoch in range(1, n_epochs + 1):
-            inner_pbar = tqdm.tqdm(
-                range(len(dataloader)), colour="blue", desc="Training Epoch", leave=True
+            training_pbar = tqdm.tqdm(
+                range(len(train_dataloader)), colour="blue", desc="Training Epoch", leave=True
             )
             running_g_loss = torch.tensor(0.0, requires_grad=False)
             running_d_loss = torch.tensor(0.0, requires_grad=False)
             running_mse = torch.tensor(0.0, requires_grad=False)
+            running_ssim = torch.tensor(0.0, requires_grad=False)
+            
+            val_g_loss = torch.tensor(0.0, requires_grad=False)
+            val_d_loss = torch.tensor(0.0, requires_grad=False)
+            val_mse = torch.tensor(0.0, requires_grad=False)
+            val_ssim = torch.tensor(0.0, requires_grad=False)
 
-            for idx, sample in enumerate(dataloader):
+            for idx, sample in enumerate(train_dataloader):
                 sample = {k: v.to(device) for k, v in sample.items()}
-                g_loss, mse = self.g_one_step(sample)
+                g_loss, mse, ssim = self.g_one_step(sample, "train")
                 running_g_loss += g_loss.item()
-                running_mse = mse.item()
+                running_mse += mse.item()
+                running_ssim += ssim
 
-                d_loss = self.d_one_step(n_epoch, idx, sample)
+                d_loss = self.d_one_step(n_epoch, idx, sample, "train")
                 running_d_loss += d_loss.item()
 
-                inner_pbar.update(1)
+                training_pbar.update(1)
                 
                 if self.rank == 0:
                     logger.debug(
-                        "batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
+                        "train batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
                             idx, g_loss.item(), d_loss.item()
                         )
                     )
-                
-            running_g_loss /= len(dataloader)
-            running_d_loss /= len(dataloader)
-            running_mse /= len(dataloader)
+  
+            running_g_loss /= len(train_dataloader)
+            running_d_loss /= len(train_dataloader)
+            running_mse /= len(train_dataloader)
+            running_ssim /= len(train_dataloader)
+            breakpoint()
 
-            if running_d_loss * running_g_loss < best_loss:
-                best_loss = running_d_loss * running_g_loss
+            training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
+                n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
+            )
+
+            training_pbar.set_description(training_info_str)
+            training_pbar.close()
+            
+            validation_pbar = tqdm.tqdm(
+                range(len(val_dataloader)), colour="red", desc="Validation Epoch", leave=True
+            )
+            
+            for idx, sample in enumerate(val_dataloader):
+                sample = {k: v.to(device) for k, v in sample.items()}
+                
+                
+                with torch.no_grad():
+
+                    # Run the generator forward pass
+                    g_loss, mse, ssim = self.g_one_step(sample, "validate")
+                    val_g_loss += g_loss.item()
+                    val_mse += mse.item()
+                    val_ssim += ssim
+
+                    # Run the discriminator forward pass
+                    d_loss = self.d_one_step(n_epoch, idx, sample, "validate")
+                    val_d_loss += d_loss.item()
+
+
+                validation_pbar.update(1)
+                
+                if self.rank == 0:
+                    logger.debug(
+                        "val batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
+                            idx, g_loss.item(), d_loss.item()
+                        )
+                    )
+            
+            val_g_loss /= len(val_dataloader)
+            val_d_loss /= len(val_dataloader)
+            val_mse /= len(val_dataloader)
+            val_ssim /= len(val_dataloader)
+
+            val_info_str = "valid_g_loss:{:7.3f}, valid_d_loss:{:7.3f}, valid_mse:{:7.8f}, valid_ssim:{:7.8f}".format(
+                val_g_loss, val_d_loss, val_mse, val_ssim
+            )
+
+            validation_pbar.set_description("           " + val_info_str)
+            validation_pbar.close()
+            
+            pbar.update(1)
+            if self.rank == 0:
+                logger.info(training_info_str + "," + val_info_str)
+            
+            if val_g_loss * val_d_loss < best_loss:
+                best_loss = val_g_loss * val_d_loss
                 torch.save(self.g_net.state_dict(), self.out_dir / "model_gnet_best.pt")
                 torch.save(self.d_net.state_dict(), self.out_dir / "model_dnet_best.pt")
 
-            info_str = "epoch {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}, mse:{:7.3f}".format(
-                n_epoch, running_g_loss, running_d_loss, running_mse * 3
-            )
-
-            inner_pbar.close()
-            pbar.update(1)
-            pbar.set_description(info_str)
-            if self.rank == 0:
-                pbar.write(info_str)
-                logger.info(info_str)
+            
 
         return None

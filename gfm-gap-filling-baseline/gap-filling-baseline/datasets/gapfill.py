@@ -53,7 +53,6 @@ class GAPFILL(VisionDataset):
         self.cloud_range = cloud_range
         self.tif_paths = self._get_tif_paths()
         self.cloud_paths, self.cloud_catalog = self._get_cloud_paths()
-        
         self.n_cloudpaths = len(self.cloud_paths)
     
     # Create list of all merged image chips
@@ -63,7 +62,7 @@ class GAPFILL(VisionDataset):
         itemlist = sorted(catalog["chip_id"].tolist())
         pathlist = [self.image_dir.joinpath(f"{item}_merged.tif") for item in itemlist]
         chipslist = list(self.image_dir.glob("*.tif"))
-        truelist = list(set(pathlist) & set(chipslist))
+        truelist = sorted(list(set(pathlist) & set(chipslist)))
         return truelist
     
     # Create list of all paths to clouds
@@ -73,7 +72,7 @@ class GAPFILL(VisionDataset):
         itemlist = sorted(catalog["fmask_name"].tolist())
         chipslist = list(self.cloud_dir.glob("*.tif"))
         pathlist = [self.cloud_dir.joinpath(f"{item}") for item in itemlist]
-        truelist = list(set(pathlist) & set(chipslist))
+        truelist = sorted(list(set(pathlist) & set(chipslist)))
         return truelist, catalog
     
     def __len__(self):
@@ -91,10 +90,16 @@ class GAPFILL(VisionDataset):
         cloudbrick = np.zeros_like(groundtruth)
 
         # For every specified mask position, read in a random cloud scene and add to the block of cloud masks
-        for p in self.mask_position:
-            cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # Read in random cloud scene
-            cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene
-            del cloudscene
+        if self.split == "train" :
+            for p in self.mask_position:
+                cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # Read in random cloud scene
+                cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene
+                del cloudscene
+        else:
+            for p in self.mask_position:
+                cloudscene = read_tif_as_np_array(self.cloud_paths[index % self.n_cloudpaths]) # Read in cloud scene in order
+                cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene
+                del cloudscene
 
         sample = {}
         sample['masked'] = self.cloudmask(cloudbrick, groundtruth).transpose(1,2,0).astype(np.float32)
