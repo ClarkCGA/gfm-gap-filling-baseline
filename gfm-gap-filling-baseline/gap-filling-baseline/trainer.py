@@ -209,7 +209,6 @@ class Trainer:
             running_d_loss /= len(train_dataloader)
             running_mse /= len(train_dataloader)
             running_ssim /= len(train_dataloader)
-            breakpoint()
 
             training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
                 n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
