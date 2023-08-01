@@ -12,7 +12,7 @@ import datasets.drc
 import options.common
 import options.gan
 from trainer import Trainer
-
+import pathlib
 
 
 ##################################
@@ -29,6 +29,8 @@ OUT_DIR = args.out_dir / options.gan.args2str(args)
 # This avoids errors when setting up logging later due to race conditions.
 OUT_DIR.mkdir(exist_ok=True)
 
+g_net_checkpoint = args.out_dir / args.checkpoint_dir / "model_gnet_best.pt"
+d_net_checkpoint = args.out_dir / args.checkpoint_dir / "model_dnet_best.pt"
 
 ###########
 #         #
@@ -112,6 +114,13 @@ logger.info(val_dataset)
 g_net = options.gan.get_generator(CONFIG).to(device)
 d_net = options.gan.get_discriminator(CONFIG).to(device)
 
+if args.checkpoint_dir != pathlib.Path(""):
+    g_net_state_dict = torch.load(g_net_checkpoint)
+    d_net_state_dict = torch.load(d_net_checkpoint)
+
+    g_net.load_state_dict(g_net_state_dict)
+    d_net.load_state_dict(d_net_state_dict)
+
 ############
 #          #
 # Training #
@@ -152,5 +161,5 @@ trainer.train(train_dataloader, val_dataloader, args.epochs)
 #        #
 ##########
 
-torch.save(trainer.g_net.state_dict(), OUT_DIR / "model_gnet.pt")
-torch.save(trainer.d_net.state_dict(), OUT_DIR / "model_dnet.pt")
+# torch.save(trainer.g_net.state_dict(), OUT_DIR / "model_gnet.pt")
+# torch.save(trainer.d_net.state_dict(), OUT_DIR / "model_dnet.pt")

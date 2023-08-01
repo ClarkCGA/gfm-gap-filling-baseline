@@ -54,6 +54,9 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--training_length", type=int, default=8000, help="Length of training dataset"
+    )
+    parser.add_argument(
         "--n_bands", type=int, default=6, help="Number of spectral bands"
     )
     parser.add_argument(
@@ -81,6 +84,13 @@ def get_parser():
         type=pathlib.Path,
         default="/workspace/data/results",
         help="Where to store models, log, etc.",
+    )
+
+    parser.add_argument(
+        "--checkpoint_dir",
+        type=pathlib.Path,
+        default="",
+        help="Name of directory the model will look for checkpoints in"
     )
 
     return parser
@@ -156,7 +166,8 @@ def get_dataset(config, split, transforms):
         mask_position = config["dataset"]["mask_position"]
         n_bands = config["dataset"]["n_bands"]
         cloud_range = config["dataset"]["cloud_range"]
-        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands, cloud_range)
+        training_length = config["dataset"]["training_length"]
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands, cloud_range, training_length)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))

@@ -39,7 +39,8 @@ class GAPFILL(VisionDataset):
     splits = ["train", "validate"]
 
     # 6/6: This will need to be rewritten when the structure of the data becomes clearer, but the output above is the important part - DWG
-    def __init__(self, root, split="train", transforms=None, time_steps=3, mask_position=[1], n_bands = 6, cloud_range = (0,1)):
+    def __init__(self, root, split="train", transforms=None, time_steps=3, mask_position=[1], n_bands = 6, cloud_range = (0,1), training_length=8000, normalize=False,
+                mean=[495.7316,  814.1386,  924.5740, 2962.5623, 2640.8833, 1740.3031], std=[286.9569, 359.3304, 576.3471, 892.2656, 945.9432, 916.1625]):
         super().__init__(pathlib.Path(root), transforms=transforms)
 
         verify_str_arg(split, "split", self.splits)
@@ -50,10 +51,20 @@ class GAPFILL(VisionDataset):
         self.time_steps = time_steps
         self.mask_position = mask_position
         self.n_bands = n_bands
-        self.cloud_range = cloud_range
-        self.tif_paths = self._get_tif_paths()
+        self.normalize = normalize
+        self.training_length = training_length
+        if self.split == "train":
+            self.cloud_range = cloud_range
+        if self.split == "validate":
+            self.cloud_range = [0.01,1.0]
+        if self.split == "train":
+            self.tif_paths = self._get_tif_paths()[:self.training_length]
+        if self.split == "validate":
+            self.tif_paths = self._get_tif_paths()
         self.cloud_paths, self.cloud_catalog = self._get_cloud_paths()
         self.n_cloudpaths = len(self.cloud_paths)
+        self.mean = np.array(mean * 3)[:, np.newaxis, np.newaxis]  # corresponding mean per band for normalization purpose
+        self.std = np.array(std * 3)[:, np.newaxis, np.newaxis]  # corresponding std per band for normalization purpose
     
     # Create list of all merged image chips
     def _get_tif_paths(self):
@@ -84,8 +95,8 @@ class GAPFILL(VisionDataset):
                     return src.read()
 
         # Read in merged tif as ground truth
-        groundtruth = read_tif_as_np_array(self.tif_paths[index]) / 10000 # Scale factor for given image - maybe make it a command line arg later for generalizing
-
+        groundtruth = read_tif_as_np_array(self.tif_paths[index]) # Scale factor for given image - maybe make it a command line arg later for generalizing
+        
         # Initialize empty cloud mask with same dimensions as ground truth
         cloudbrick = np.zeros_like(groundtruth)
 
@@ -102,8 +113,8 @@ class GAPFILL(VisionDataset):
                 del cloudscene
 
         sample = {}
-        sample['masked'] = self.cloudmask(cloudbrick, groundtruth).transpose(1,2,0).astype(np.float32)
-        sample['unmasked'] = self.cloudunmask(cloudbrick, groundtruth).transpose(1,2,0).astype(np.float32)
+        sample['masked'] = self.normalize_tif(self.cloudmask(cloudbrick, groundtruth)).transpose(1,2,0).astype(np.float32)
+        sample['unmasked'] = self.normalize_tif(self.cloudunmask(cloudbrick, groundtruth)).transpose(1,2,0).astype(np.float32)
         sample['cloud'] = cloudbrick.transpose(1,2,0).astype(np.float32)
 
         # Perform any specified transforms on sample
@@ -127,3 +138,11 @@ class GAPFILL(VisionDataset):
         unmasked_tif *= cloudtif
         return unmasked_tif
 
+
+    def normalize_tif(self, tif):
+        if self.normalize:
+            norm_tif = np.where(tif == -9999, 0.0001,
+                                    (tif - self.mean) / self.std)  # don't normalize on nodata
+        else:
+            norm_tif = tif * 0.0001  # if not normalize, just rescale
+        return norm_tif

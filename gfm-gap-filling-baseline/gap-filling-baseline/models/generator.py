@@ -114,7 +114,6 @@ class Decoder(nn.Module):
             spectral_norm(
                 nn.Conv2d(out_channels, output_nc, final_kernel_size, padding=0)
             ),
-            nn.Tanh(),
         )
 
     def input_shape(self, output_shape):

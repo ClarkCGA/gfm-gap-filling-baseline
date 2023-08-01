@@ -7,6 +7,8 @@ import numpy as np
 import loss
 from PIL import Image
 from torchmetrics.image import StructuralSimilarityIndexMeasure
+from torchmetrics.regression import MeanSquaredError
+
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,9 @@ class Trainer:
         disc_fake_pad = [
             torch.where(cloud_tensor == 0, red_tensor, disc_tensor) for disc_tensor, cloud_tensor in zip(disc_fake_pad, cloudmask_pad)
         ]
+
+        mean = torch.tensor([495.7316,  814.1386,  924.5740])[:, None, None].to(red_tensor.device).flip(0) # R, G, B
+        std = torch.tensor([286.9569, 359.3304, 576.3471])[:, None, None].to(red_tensor.device).flip(0) # R, G, B
         
         masked = []
         generated = []
@@ -117,7 +122,6 @@ class Trainer:
         dest_fake = self.g_net(g_input)
         gen_unmasked = dest_fake * sample["cloud"]
         gen_reconstruction = gen_unmasked + sample["masked"]
-
         d_output_fake = self.d_net(g_input, gen_reconstruction).final
         
         # Create a list of downscaled cloud masks to weight discriminator outputs
@@ -129,15 +133,17 @@ class Trainer:
         # This ensures that the model is not rewarded for non-generated pixel values.
         mse_normalized = torch.nn.functional.mse_loss(gen_unmasked, sample["unmasked"]) 
         mse_normalized /= torch.mean(sample["cloud"])
+        mean_squared_error = MeanSquaredError()
+        mse_score = mean_squared_error(gen_unmasked.detach().cpu(), sample["unmasked"].detach().cpu())
+        mse_score /= torch.mean(sample["cloud"].detach().cpu())
         StructuralSimilarity = StructuralSimilarityIndexMeasure(data_range=1.0)
         ssim = StructuralSimilarity(gen_unmasked[:,6:12,:,:].detach().cpu(), sample["unmasked"][:,6:12,:,:].detach().cpu())
         loss_val += self.alpha * mse_normalized
-
         if split == "train":
             loss_val.backward()
             self.g_optim.step()
 
-        return loss_val, mse_normalized, ssim
+        return loss_val, mse_score, ssim
 
     def d_one_step(self, n_epoch, idx, sample, split):
         self.d_optim.zero_grad()
@@ -158,7 +164,7 @@ class Trainer:
             self.d_loss(*disc_out) for disc_out in zip(disc_real, disc_fake, cloudmask)
         )
         
-        if idx  == 8 and split == "validate" and self.visualization == "image":
+        if idx % 5 == 0 and split == "validate" and self.visualization == "image":
             self.visualize_tcc(n_epoch, idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
 
         if split == "train":
@@ -176,46 +182,46 @@ class Trainer:
             training_pbar = tqdm.tqdm(
                 range(len(train_dataloader)), colour="blue", desc="Training Epoch", leave=True
             )
-            running_g_loss = torch.tensor(0.0, requires_grad=False)
-            running_d_loss = torch.tensor(0.0, requires_grad=False)
-            running_mse = torch.tensor(0.0, requires_grad=False)
-            running_ssim = torch.tensor(0.0, requires_grad=False)
+            # running_g_loss = torch.tensor(0.0, requires_grad=False)
+            # running_d_loss = torch.tensor(0.0, requires_grad=False)
+            # running_mse = torch.tensor(0.0, requires_grad=False)
+            # running_ssim = torch.tensor(0.0, requires_grad=False)
             
             val_g_loss = torch.tensor(0.0, requires_grad=False)
             val_d_loss = torch.tensor(0.0, requires_grad=False)
             val_mse = torch.tensor(0.0, requires_grad=False)
             val_ssim = torch.tensor(0.0, requires_grad=False)
 
-            for idx, sample in enumerate(train_dataloader):
-                sample = {k: v.to(device) for k, v in sample.items()}
-                g_loss, mse, ssim = self.g_one_step(sample, "train")
-                running_g_loss += g_loss.item()
-                running_mse += mse.item()
-                running_ssim += ssim
+            # for idx, sample in enumerate(train_dataloader):
+            #     sample = {k: v.to(device) for k, v in sample.items()}
+            #     g_loss, mse, ssim = self.g_one_step(sample, "train")
+            #     running_g_loss += g_loss.item()
+            #     running_mse += mse
+            #     running_ssim += ssim
 
-                d_loss = self.d_one_step(n_epoch, idx, sample, "train")
-                running_d_loss += d_loss.item()
+            #     d_loss = self.d_one_step(n_epoch, idx, sample, "train")
+            #     running_d_loss += d_loss.item()
 
-                training_pbar.update(1)
+            #     training_pbar.update(1)
                 
-                if self.rank == 0:
-                    logger.debug(
-                        "train batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
-                            idx, g_loss.item(), d_loss.item()
-                        )
-                    )
+            #     if self.rank == 0:
+            #         logger.debug(
+            #             "train batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
+            #                 idx, g_loss.item(), d_loss.item()
+            #             )
+            #         )
   
-            running_g_loss /= len(train_dataloader)
-            running_d_loss /= len(train_dataloader)
-            running_mse /= len(train_dataloader)
-            running_ssim /= len(train_dataloader)
+            # running_g_loss /= len(train_dataloader)
+            # running_d_loss /= len(train_dataloader)
+            # running_mse /= len(train_dataloader)
+            # running_ssim /= len(train_dataloader)
 
-            training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
-                n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
-            )
+            # training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
+            #     n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
+            # )
 
-            training_pbar.set_description(training_info_str)
-            training_pbar.close()
+            # training_pbar.set_description(training_info_str)
+            # training_pbar.close()
             
             validation_pbar = tqdm.tqdm(
                 range(len(val_dataloader)), colour="red", desc="Validation Epoch", leave=True
@@ -230,7 +236,7 @@ class Trainer:
                     # Run the generator forward pass
                     g_loss, mse, ssim = self.g_one_step(sample, "validate")
                     val_g_loss += g_loss.item()
-                    val_mse += mse.item()
+                    val_mse += mse
                     val_ssim += ssim
 
                     # Run the discriminator forward pass
@@ -261,12 +267,17 @@ class Trainer:
             
             pbar.update(1)
             if self.rank == 0:
-                logger.info(training_info_str + "," + val_info_str)
+                logger.info(training_info_str + ", " + 
+                            val_info_str)
             
-            if val_g_loss * val_d_loss < best_loss:
-                best_loss = val_g_loss * val_d_loss
+            if (1-val_ssim) < best_loss:
+                best_loss = (1-val_ssim)
                 torch.save(self.g_net.state_dict(), self.out_dir / "model_gnet_best.pt")
                 torch.save(self.d_net.state_dict(), self.out_dir / "model_dnet_best.pt")
+
+            if n_epoch == 100:
+                torch.save(self.g_net.state_dict(), self.out_dir / "model_gnet_100.pt")
+                torch.save(self.d_net.state_dict(), self.out_dir / "model_dnet_100.pt") 
 
             
 

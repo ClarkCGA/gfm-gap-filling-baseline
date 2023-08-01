@@ -86,7 +86,7 @@ def args2str(args):
 
 
     # training arguments
-    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}_range{args.cloud_range}".format(
+    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}".format(
         args=args
     )
 
@@ -95,7 +95,7 @@ def args2str(args):
     current_time = datetime.datetime.now()
 
 # Convert the datetime object to a string
-    datestr = current_time.strftime('%Y-%m-%d %H:%M:%S')
+    datestr = current_time.strftime('%Y-%m-%d-%H:%M:%S')
 
     idstr = "_".join([train_str, datestr])
     if args.suffix:
@@ -130,6 +130,7 @@ def args2dict(args):
         "mask_position": args.mask_position,
         "n_bands": args.n_bands,
         "cloud_range": args.cloud_range,
+        "training_length": args.training_length
     }
 
     return {"model": model, "training": train, "dataset": data}
