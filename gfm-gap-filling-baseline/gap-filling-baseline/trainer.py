@@ -182,46 +182,46 @@ class Trainer:
             training_pbar = tqdm.tqdm(
                 range(len(train_dataloader)), colour="blue", desc="Training Epoch", leave=True
             )
-            # running_g_loss = torch.tensor(0.0, requires_grad=False)
-            # running_d_loss = torch.tensor(0.0, requires_grad=False)
-            # running_mse = torch.tensor(0.0, requires_grad=False)
-            # running_ssim = torch.tensor(0.0, requires_grad=False)
+            running_g_loss = torch.tensor(0.0, requires_grad=False)
+            running_d_loss = torch.tensor(0.0, requires_grad=False)
+            running_mse = torch.tensor(0.0, requires_grad=False)
+            running_ssim = torch.tensor(0.0, requires_grad=False)
             
             val_g_loss = torch.tensor(0.0, requires_grad=False)
             val_d_loss = torch.tensor(0.0, requires_grad=False)
             val_mse = torch.tensor(0.0, requires_grad=False)
             val_ssim = torch.tensor(0.0, requires_grad=False)
 
-            # for idx, sample in enumerate(train_dataloader):
-            #     sample = {k: v.to(device) for k, v in sample.items()}
-            #     g_loss, mse, ssim = self.g_one_step(sample, "train")
-            #     running_g_loss += g_loss.item()
-            #     running_mse += mse
-            #     running_ssim += ssim
+            for idx, sample in enumerate(train_dataloader):
+                sample = {k: v.to(device) for k, v in sample.items()}
+                g_loss, mse, ssim = self.g_one_step(sample, "train")
+                running_g_loss += g_loss.item()
+                running_mse += mse
+                running_ssim += ssim
 
-            #     d_loss = self.d_one_step(n_epoch, idx, sample, "train")
-            #     running_d_loss += d_loss.item()
+                d_loss = self.d_one_step(n_epoch, idx, sample, "train")
+                running_d_loss += d_loss.item()
 
-            #     training_pbar.update(1)
+                training_pbar.update(1)
                 
-            #     if self.rank == 0:
-            #         logger.debug(
-            #             "train batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
-            #                 idx, g_loss.item(), d_loss.item()
-            #             )
-            #         )
+                if self.rank == 0:
+                    logger.debug(
+                        "train batch idx {:3d}, g_loss:{:7.3f}, d_loss:{:7.3f}".format(
+                            idx, g_loss.item(), d_loss.item()
+                        )
+                    )
   
-            # running_g_loss /= len(train_dataloader)
-            # running_d_loss /= len(train_dataloader)
-            # running_mse /= len(train_dataloader)
-            # running_ssim /= len(train_dataloader)
+            running_g_loss /= len(train_dataloader)
+            running_d_loss /= len(train_dataloader)
+            running_mse /= len(train_dataloader)
+            running_ssim /= len(train_dataloader)
 
-            # training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
-            #     n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
-            # )
+            training_info_str = "epoch {:3d}, train_g_loss:{:7.3f}, train_d_loss:{:7.3f}, train_mse:{:7.8f}, train_ssim:{:7.8f}".format(
+                n_epoch, running_g_loss, running_d_loss, running_mse, running_ssim
+            )
 
-            # training_pbar.set_description(training_info_str)
-            # training_pbar.close()
+            training_pbar.set_description(training_info_str)
+            training_pbar.close()
             
             validation_pbar = tqdm.tqdm(
                 range(len(val_dataloader)), colour="red", desc="Validation Epoch", leave=True
