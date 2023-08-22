@@ -87,7 +87,7 @@ class Visualizer:
         generated = torch.cat(generated, dim=1)
         unmasked = torch.cat(unmasked, dim=1)
         torchvision.utils.save_image(
-            torch.cat([masked]+[generated]+[unmasked], dim=2), self.out_dir/ "idx{:04}_gen.jpg".format(idx),
+            torch.cat([masked]+[generated]+[unmasked], dim=2), self.out_dir / "images" / "idx{:04}_gen.jpg".format(idx),
         )
 
     def d_one_step(self, idx, sample):
@@ -104,8 +104,7 @@ class Visualizer:
         disc_fake = self.d_net(g_input, gen_reconstruction).final
         cloudmask = [torch.nn.functional.max_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
 
-        if idx % 5 == 0:
-            self.visualize_tcc(idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
+        self.visualize_tcc(idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
 
     def visualize(self, val_dataloader):
         device = torch.device(f"cuda:{self.local_rank}")
@@ -114,11 +113,12 @@ class Visualizer:
         )
         
         for idx, sample in enumerate(val_dataloader):
-            sample = {k: v.to(device) for k, v in sample.items()}
+            if idx % 5 == 0:
+                sample = {k: v.to(device) for k, v in sample.items()}
             
-            with torch.no_grad():
+                with torch.no_grad():
                 # Run the discriminator forward pass
-                self.d_one_step(idx, sample)
+                    self.d_one_step(idx, sample)
             validation_pbar.update(1)
                     
         return None

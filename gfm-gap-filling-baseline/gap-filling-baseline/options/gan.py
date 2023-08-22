@@ -86,7 +86,7 @@ def args2str(args):
 
 
     # training arguments
-    train_str = "{args.dataset}_bs{args.batch_size}_ep{args.epochs}_cap{args.model_cap}_lr{args.discriminator_lr}_{args.generator_lr}_alpha{args.alpha}".format(
+    train_str = "subset_{args.training_length}".format(
         args=args
     )
 

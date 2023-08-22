@@ -57,11 +57,9 @@ class GAPFILL(VisionDataset):
             self.cloud_range = cloud_range
         if self.split == "validate":
             self.cloud_range = [0.01,1.0]
-        if self.split == "train":
-            self.tif_paths = self._get_tif_paths()[:self.training_length]
-        if self.split == "validate":
-            self.tif_paths = self._get_tif_paths()
+        self.tif_paths, self.tif_catalog = self._get_tif_paths()
         self.cloud_paths, self.cloud_catalog = self._get_cloud_paths()
+
         self.n_cloudpaths = len(self.cloud_paths)
         self.mean = np.array(mean * 3)[:, np.newaxis, np.newaxis]  # corresponding mean per band for normalization purpose
         self.std = np.array(std * 3)[:, np.newaxis, np.newaxis]  # corresponding std per band for normalization purpose
@@ -70,15 +68,20 @@ class GAPFILL(VisionDataset):
     def _get_tif_paths(self):
         csv = pd.read_csv(self.root_dir.joinpath("final_chip_tracker.csv"))
         catalog = csv.loc[(csv["usage"] == self.split) & (csv["bad_pct_max"] < 5) & (csv["na_count"] == 0)]
-        itemlist = sorted(catalog["chip_id"].tolist())
+        if self.split == "train":
+            catalog_subset = catalog.sample(n=self.training_length)
+        else:
+            catalog_subset = catalog
+        itemlist = sorted(catalog_subset["chip_id"].tolist())
         pathlist = [self.image_dir.joinpath(f"{item}_merged.tif") for item in itemlist]
         chipslist = list(self.image_dir.glob("*.tif"))
         truelist = sorted(list(set(pathlist) & set(chipslist)))
-        return truelist
+        sorted_catalog = catalog_subset.sort_values(by="chip_id", ascending=True)
+        return truelist, sorted_catalog
     
     # Create list of all paths to clouds
     def _get_cloud_paths(self):
-        csv = pd.read_csv(self.root_dir.joinpath("fmask_tracker.csv"))
+        csv = pd.read_csv(self.root_dir.joinpath("fmask_tracker_balanced.csv"))
         catalog = csv.loc[(csv["usage"] == self.split) & (csv["cloud_pct"] <= self.cloud_range[1]) & (csv["cloud_pct"] >= self.cloud_range[0])]
         itemlist = sorted(catalog["fmask_name"].tolist())
         chipslist = list(self.cloud_dir.glob("*.tif"))

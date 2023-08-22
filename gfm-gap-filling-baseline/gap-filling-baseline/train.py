@@ -92,9 +92,12 @@ train_transforms, test_transforms = options.common.get_transforms(CONFIG)
 
 train_dataset = options.common.get_dataset(CONFIG, split="train", transforms=train_transforms)
 train_dataset.cloud_catalog.to_csv(OUT_DIR / "training_clouds.csv", index=False)
+train_dataset.tif_catalog.to_csv(OUT_DIR / "training_tifs.csv", index=False)
 
 val_dataset = options.common.get_dataset(CONFIG, split="validate", transforms=train_transforms)
 val_dataset.cloud_catalog.to_csv(OUT_DIR / "validate_clouds.csv", index=False)
+val_dataset.tif_catalog.to_csv(OUT_DIR / "validate_tifs.csv", index=False)
+
 
 print(f"Number of training images: {len(train_dataset)}")
 print(f"Number of training cloud masks: {train_dataset.n_cloudpaths}")
