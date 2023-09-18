@@ -8,7 +8,6 @@ import pandas as pd
 import numpy as np
 import yaml
 
-import datasets.drc
 import options.common
 import options.gan
 from stat_creator import Stat_Creator
