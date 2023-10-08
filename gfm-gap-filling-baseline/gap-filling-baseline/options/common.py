@@ -21,14 +21,14 @@ def get_parser():
     parser.add_argument(
         "--crop",
         type=int,
-        default=(256,),
+        default=(224,224),
         nargs="+",
         help="Size of crop. Can be a tuple of height and width",
     )
     parser.add_argument(
         "--resize",
         type=int,
-        default=(256,),
+        default=(224,224),
         nargs="+",
         help="Resizing after cropping. Can be a tuple of height and width",
     )
