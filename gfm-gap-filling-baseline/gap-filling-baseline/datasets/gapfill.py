@@ -1,5 +1,3 @@
-""" The dataset of the IEEE GRSS data fusion contest """
-
 import pathlib
 import logging
 

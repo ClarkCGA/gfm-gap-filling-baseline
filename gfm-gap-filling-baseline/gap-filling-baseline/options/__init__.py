@@ -6,7 +6,6 @@
 
 from .common import *
 from .gan import *
-from .segment import *
 import datasets.transforms
 
 
