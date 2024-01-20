@@ -127,7 +127,6 @@ def args2dict(args):
         "name": args.dataset,
         "root": args.dataroot,
         "time_steps": args.time_steps,
-        "mask_position": args.mask_position,
         "n_bands": args.n_bands,
         "cloud_range": args.cloud_range,
         "training_length": args.training_length

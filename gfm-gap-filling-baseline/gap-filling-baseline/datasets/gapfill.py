@@ -59,7 +59,6 @@ class GAPFILL(VisionDataset):
                  split="train", 
                  transforms=None, 
                  time_steps=3, 
-                 mask_position=[1], 
                  n_bands = 6, 
                  cloud_range = (0.01,1), 
                  training_length=6231, 
@@ -78,7 +77,7 @@ class GAPFILL(VisionDataset):
         # set parameters
         self.split = split
         self.time_steps = time_steps
-        self.mask_position = mask_position
+        self.mask_position = [[1],[2],[3],[1,2],[2,3],[1,3],[1,2,3]]
         self.n_bands = n_bands
         self.normalize = normalize
         self.training_length = training_length
@@ -197,15 +196,17 @@ class GAPFILL(VisionDataset):
         # initialize empty cloud mask with same dimensions as ground truth
         cloudbrick = np.zeros_like(groundtruth)
 
+        mask_position = self.mask_position[index % 7] # this loops through the possible combinations of mask position
+
         # for every specified mask position, read in a random cloud scene and add to the block of cloud masks
         if self.split == "train" :
-            for p in self.mask_position:
+            for p in mask_position:
                 cloudscene = read_tif_as_np_array(self.cloud_paths[np.random.randint(0,self.n_cloudpaths-1)]) # read in random cloud scene
                 cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene
                 del cloudscene
         else:
-            for p in self.mask_position:
-                cloudscene = read_tif_as_np_array(self.cloud_paths[index % self.n_cloudpaths]) # read in cloud scene in order
+            for p in mask_position:
+                cloudscene = read_tif_as_np_array(self.cloud_paths[(index + (p-1)) % self.n_cloudpaths]) # read in cloud scene in order
                 cloudbrick[(p-1)*self.n_bands:p*self.n_bands,:,:] = cloudscene
                 del cloudscene
 

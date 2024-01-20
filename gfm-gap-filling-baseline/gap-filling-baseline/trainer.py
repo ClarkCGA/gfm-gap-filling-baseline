@@ -181,7 +181,7 @@ class Trainer:
         gen_unmasked = dest_fake * sample["cloud"] # gen_unmasked has a value of 0 at all non-cloud pixels
         gen_reconstruction = gen_unmasked + sample["masked"] # gen_reconstruction has generated values at masked pixels
         d_output_fake = self.d_net(g_input, gen_reconstruction).final # d_output_fake is a list of tensors representing discriminator outputs at different scales
-        cloud_mean = torch.mean(sample["cloud"][:,6:12,:,:]) # how much of the image is masked at the center time step
+        cloud_mean = torch.mean(sample["cloud"])
         
         # Create a list of downscaled cloud masks to weight discriminator outputs, where any patch with a cloudy pixel counts as a cloud mask
         cloudmask = [torch.nn.functional.max_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(d_output_fake))]
@@ -195,15 +195,15 @@ class Trainer:
         mse_normalized /= torch.mean(sample["cloud"])
         
         # get the mean squared error normalized by the mean cloud mask for the center time step
-        mse_score = self.mean_squared_error(gen_unmasked[:,6:12,:,:], sample["unmasked"][:,6:12,:,:])
+        mse_score = self.mean_squared_error(gen_unmasked, sample["unmasked"])
         mse_score /= cloud_mean
 
         # get the mean absolute error normalized by the mean cloud mask for the center time step
-        mae_score = self.mean_abs_error(gen_unmasked[:,6:12,:,:], sample["unmasked"][:,6:12,:,:])
+        mae_score = self.mean_abs_error(gen_unmasked, sample["unmasked"])
         mae_score /= cloud_mean
         
         # get the ssim, do not normalize with the cloud mask.
-        ssim = self.structural_similarity(gen_unmasked[:,6:12,:,:], sample["unmasked"][:,6:12,:,:])
+        ssim = self.structural_similarity(gen_unmasked, sample["unmasked"])
 
         # combine hinge loss with mean squared error loss according to hyperparameter alpha
         loss_val += self.alpha * mse_normalized
@@ -237,8 +237,8 @@ class Trainer:
         )
         
         # run the visualize_tcc method for the 5th batch in each loop
-        if idx % 5 == 0 and split == "validate" and self.visualization == "image":
-            self.visualize_tcc(n_epoch, idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
+        # if idx % 5 == 0 and split == "validate" and self.visualization == "image":
+        #    self.visualize_tcc(n_epoch, idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
 
         if split == "train":
             loss_val.backward()

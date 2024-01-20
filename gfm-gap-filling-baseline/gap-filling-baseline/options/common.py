@@ -62,14 +62,6 @@ def get_parser():
     parser.add_argument(
         "--time_steps", type=int, default=3, help="Number of time steps for gap filling dataset"
     )
-    
-    parser.add_argument(
-        "--mask_position",
-        type=int,
-        default=[2],
-        nargs="+",
-        help="List of positions of mask in time steps - first time step = 1, last time step = input of --time_steps",
-    )
 
     parser.add_argument(
         "--cloud_range",
@@ -163,11 +155,10 @@ def get_dataset(config, split, transforms):
 
     if name == "gapfill":
         time_steps = config["dataset"]["time_steps"]
-        mask_position = config["dataset"]["mask_position"]
         n_bands = config["dataset"]["n_bands"]
         cloud_range = config["dataset"]["cloud_range"]
         training_length = config["dataset"]["training_length"]
-        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, mask_position, n_bands, cloud_range, training_length)
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, n_bands, cloud_range, training_length)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))
