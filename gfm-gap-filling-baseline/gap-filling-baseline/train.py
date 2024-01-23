@@ -25,6 +25,8 @@ args = parser.parse_args()
 
 OUT_DIR = args.out_dir / options.gan.args2str(args)
 OUT_DIR.mkdir(exist_ok=True)
+VIS_DIR = OUT_DIR / "visualizations"
+VIS_DIR.mkdir(exist_ok=True)
 
 # read in checkpoints for generator and discriminator if they exist
 g_net_checkpoint = args.out_dir / args.checkpoint_dir / "model_gnet_best.pt"
