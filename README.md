@@ -69,7 +69,7 @@ These can be run for any weights checkpoint.
 visualize.py is run similarly to train.py. The script will access a checkpoint and save images to a new images directory in the same directory as the checkpoint. For example:
 
 ```
-python -m visualize --model_cap 64 --batch size --dataset gapfill --dataroot /workspace/data/gapfill6band --mask_position 2 --cloud_range 0.01 1.0 --local_rank 0 --checkpoint_dir subset_6231_2023-08-20-17:01:03_uneven_bs16
+python -m visualize --model_cap 64 --batch_size 16 --dataset gapfill --dataroot /workspace/data/gapfill6band --mask_position 2 --cloud_range 0.01 1.0 --local_rank 0 --checkpoint_dir subset_6231_2023-08-20-17:01:03_uneven_bs16
 ```
 
 To create .csv files containing per-image and per-band statistics for the entire validation dataset, run as follows:
