@@ -129,6 +129,7 @@ def args2dict(args):
         "time_steps": args.time_steps,
         "n_bands": args.n_bands,
         "cloud_range": args.cloud_range,
+        "mask_position": args.mask_position,
         "training_length": args.training_length
     }
 

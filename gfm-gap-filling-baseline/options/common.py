@@ -50,7 +50,7 @@ def get_parser():
         help="Which dataset to use: DRC or cloud gap filling?",
     )
     parser.add_argument(
-        "--dataroot", type=str, default="/workspace/gfm-gap-filling-baseline/data/gapfill6band", help="Path to dataset"
+        "--dataroot", type=str, default="/workspace/data/local-data", help="Path to dataset"
     )
 
     parser.add_argument(
@@ -64,9 +64,17 @@ def get_parser():
     )
 
     parser.add_argument(
+        "--mask_position", 
+        type=list, 
+        nargs='+', 
+        default=[[1],[2],[3],[1,2],[2,3],[1,3],[1,2,3]], 
+        help="Position of cloud mask. Use 1, 2, or 3 in combinations - e.g. --mask_position 1 2 3 12 13 23 123",
+    )    
+
+    parser.add_argument(
         "--cloud_range",
         type=float,
-        default=[0,1],
+        default=[0.1,1],
         nargs="+",
         help="Lower and upper boundaries for cloud ratios",
     )
@@ -74,7 +82,7 @@ def get_parser():
     parser.add_argument(
         "--out_dir",
         type=pathlib.Path,
-        default="/workspace/gfm-gap-filling-baseline/data/results",
+        default="/workspace/data/results",
         help="Where to store models, log, etc.",
     )
 
@@ -156,9 +164,10 @@ def get_dataset(config, split, transforms):
     if name == "gapfill":
         time_steps = config["dataset"]["time_steps"]
         n_bands = config["dataset"]["n_bands"]
+        mask_position = config["dataset"]["mask_position"]
         cloud_range = config["dataset"]["cloud_range"]
         training_length = config["dataset"]["training_length"]
-        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, n_bands, cloud_range, training_length)
+        return datasets.gapfill.GAPFILL(root, split, transforms, time_steps, n_bands, mask_position, cloud_range, training_length)
     if name == "drc":
         return datasets.drc.DRC(root, split, transforms)
     raise ValueError("Dataset must be nrw or dfc, but is {}".format(name))

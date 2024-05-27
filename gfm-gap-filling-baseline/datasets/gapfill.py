@@ -59,8 +59,9 @@ class GAPFILL(VisionDataset):
                  split="train", 
                  transforms=None, 
                  time_steps=3, 
-                 n_bands = 6, 
-                 cloud_range = (0.01,1), 
+                 n_bands = 6,
+                 mask_position = [[1],[2],[3],[1,2],[2,3],[1,3],[1,2,3]],
+                 cloud_range = [0.01,1], 
                  training_length=6231, 
                  normalize=False,
                  mean=[495.7316,  814.1386,  924.5740, 2962.5623, 2640.8833, 1740.3031], 
@@ -77,7 +78,7 @@ class GAPFILL(VisionDataset):
         # set parameters
         self.split = split
         self.time_steps = time_steps
-        self.mask_position = [[1],[2],[3],[1,2],[2,3],[1,3],[1,2,3]]
+        self.mask_position = [[int(p) for p in pos_list] for pos_list in mask_position]
         self.n_bands = n_bands
         self.normalize = normalize
         self.training_length = training_length
@@ -114,7 +115,7 @@ class GAPFILL(VisionDataset):
         The CSV file should be named "final_chip_tracker.csv" and located within the root directory.
     """
         
-        csv = pd.read_csv(self.root_dir.joinpath("final_chip_tracker.csv")) # access chip tracker
+        csv = pd.read_csv(self.root_dir.joinpath("chip_catalog.csv")) # access chip tracker
 
         # filter csv by split, bad_pct_max and na_count
         catalog = csv.loc[(csv["usage"] == self.split) & (csv["bad_pct_max"] < 5) & (csv["na_count"] == 0)]
@@ -150,8 +151,7 @@ class GAPFILL(VisionDataset):
     Note:
         The CSV file should be named "fmask_tracker_balanced.csv" and located within the root directory.
     """
-        csv = pd.read_csv(self.root_dir.joinpath("fmask_tracker_balanced.csv")) # access cloud tracker
-
+        csv = pd.read_csv(self.root_dir.joinpath("cloud_catalog.csv")) # access cloud tracker
         # filter csv by usage and cloud cover range defined when initializing the dataset
         catalog = csv.loc[(csv["usage"] == self.split) & (csv["cloud_pct"] <= self.cloud_range[1]) & (csv["cloud_pct"] >= self.cloud_range[0])]
         
@@ -196,7 +196,7 @@ class GAPFILL(VisionDataset):
         # initialize empty cloud mask with same dimensions as ground truth
         cloudbrick = np.zeros_like(groundtruth)
 
-        mask_position = self.mask_position[index % 7] # this loops through the possible combinations of mask position
+        mask_position = self.mask_position[index % len(self.mask_position)] # this loops through the possible combinations of mask position
 
         # for every specified mask position, read in a random cloud scene and add to the block of cloud masks
         if self.split == "train" :
