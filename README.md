@@ -44,7 +44,7 @@ python -m train.py --epochs 200 --batch_size 16 --model_cap 64 --dataset gapfill
 
 **--dataset** directs the train.py script to the desired dataset configuration python script in the dataset folder.
 
-**--mask_position** is a list of integers, with each input integer defining a position where a cloud scene should be used to mask the multi-temporal input image. For a three-scene image, an input of 2 would denote the middle time scene. 
+**--mask_position** is a list of integers, with each input integer defining a position where a cloud scene should be used to mask the multi-temporal input image. For a three-scene image, an input of 12 23 123 would cause the training to rotate through masking in 1 and 2, 2 and 3, and 1, 2, and 3. 
 
 **--alpha** defines the relative weight given to mean squared error and hinge loss in updating the generator - the formula is as follows: loss = hinge + alpha * mse
 
