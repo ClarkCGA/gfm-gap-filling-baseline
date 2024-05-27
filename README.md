@@ -44,7 +44,7 @@ python -m train.py --epochs 200 --batch_size 16 --model_cap 64 --dataset gapfill
 
 **--dataset** directs the train.py script to the desired dataset configuration python script in the dataset folder.
 
-**--mask_position** is a list of integers, with each input integer defining a position where a cloud scene should be used to mask the multi-temporal input image. For a three-scene image, an input of 2 would denote the middle time scene. 
+**--mask_position** is a list of integers, with each input integer defining a position where a cloud scene should be used to mask the multi-temporal input image. For a three-scene image, an input of 12 23 123 would cause the training to rotate through masking in 1 and 2, 2 and 3, and 1, 2, and 3. 
 
 **--alpha** defines the relative weight given to mean squared error and hinge loss in updating the generator - the formula is as follows: loss = hinge + alpha * mse
 
@@ -69,7 +69,7 @@ These can be run for any weights checkpoint.
 visualize.py is run similarly to train.py. The script will access a checkpoint and save images to a new images directory in the same directory as the checkpoint. For example:
 
 ```
-python -m visualize --model_cap 64 --batch size --dataset gapfill --dataroot /workspace/data/gapfill6band --mask_position 2 --cloud_range 0.01 1.0 --local_rank 0 --checkpoint_dir subset_6231_2023-08-20-17:01:03_uneven_bs16
+python -m visualize --model_cap 64 --batch_size 16 --dataset gapfill --dataroot /workspace/data/gapfill6band --mask_position 2 --cloud_range 0.01 1.0 --local_rank 0 --checkpoint_dir subset_6231_2023-08-20-17:01:03_uneven_bs16
 ```
 
 To create .csv files containing per-image and per-band statistics for the entire validation dataset, run as follows:

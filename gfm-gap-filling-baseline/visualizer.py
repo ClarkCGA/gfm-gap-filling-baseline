@@ -42,6 +42,62 @@ class Visualizer:
         self.time_steps = time_steps
 
         self.out_dir = out_dir
+        self.vis_dir = out_dir / "visualizations"
+        
+    def visualize_tcc_no_disc(self, idx, sample, dest_fake, cloudmask):
+        """ 
+        Generate and save visualizations of inputs and outputs to the model as true color composites.
+        This function will only create visualizations for the first tensor in the batch.
+        This function creates visualizations of input, predicted, and ground truth images at all time steps.
+        The resulting images are saved to the specified visualization path.
+
+        Args:
+            n_epoch (int): Current epoch number.
+            idx (int): Index of the sample in the dataset.
+            sample (dict): the model input in dictionary form.
+            dest_fake (torch.tensor): a torch tensor representing the generator output of a reconstructed image.
+            cloudmask (list of torch.Tensor): a list of torch tensors representing the rescaled cloud masks used in masking the discriminator output
+        """
+        # initialize empty lists for each category of visualization
+        masked = []
+        generated = []
+        unmasked = []
+
+        # visualize input images and masks for each time step
+        for t in range(1, self.time_steps+1):
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3 
+            cloud = sample["cloud"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone()
+            cloud_masked = torch.where(cloud == 1, cloud, masked_img)
+            cloud_masked = torch.nn.functional.pad(cloud_masked, (2,2,2,2), value=0)
+            masked.append(cloud_masked)
+        
+        # visualize generated model reconstructions for each time step
+        for t in range(1, self.time_steps+1):
+            gen_img = dest_fake[0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            cloud = sample["cloud"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone()
+            gen_cloud_masked = gen_img * cloud
+            gen_reconstruction = gen_cloud_masked + masked_img
+            gen_result = torch.nn.functional.pad(gen_reconstruction, (2,2,2,2), value=0)
+            generated.append(gen_result)
+
+        # visualize ground truth for each time step
+        for t in range(1, self.time_steps+1):
+            unmasked_img = sample["unmasked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            masked_img = sample["masked"][0,(t-1)*self.n_bands:(t-1)*self.n_bands+3,:,:].clone().flip(0) * 3
+            unmasked_img += masked_img
+            unmasked_img = torch.nn.functional.pad(unmasked_img, (2,2,2,2), value=0)
+            unmasked.append(unmasked_img)
+
+        # concatenate tensors vertically
+        masked = torch.cat(masked, dim=1)
+        generated = torch.cat(generated, dim=1)
+        unmasked = torch.cat(unmasked, dim=1)
+
+        # concatenate all tensors into 3 x 3 grid and save to the out directory
+        torchvision.utils.save_image(
+            torch.cat([masked]+[generated]+[unmasked], dim=2), self.vis_dir/ "idx{:04}_gen.jpg".format(idx),
+        )
 
     def visualize_tcc(self, idx, sample, dest_fake, disc_real, disc_fake, cloudmask):
         """ 
@@ -156,7 +212,7 @@ class Visualizer:
         cloudmask = [torch.nn.functional.max_pool2d(sample["cloud"], 2 ** (3 + scale)) for scale in range(len(disc_real))]
 
         # run the visualize_tcc method
-        self.visualize_tcc(idx, sample, dest_fake, disc_real, disc_fake, cloudmask)
+        self.visualize_tcc_no_disc(idx, sample, dest_fake, cloudmask)
 
     def visualize(self, val_dataloader):
         device = torch.device(f"cuda:{self.local_rank}")
